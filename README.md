@@ -5,7 +5,8 @@ compressed format.
 
 ## Installation
 
-     * [MAC OS Wireshark 3.1 plugin](http://www.gdnet.be/Wireshark/macos_3_1_cisco_pfcp.so)
+MAC OS Wireshark 3.1 plugin [download](http://www.gdnet.be/Wireshark/macos_3_1_cisco_pfcp.so)
+
 
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
