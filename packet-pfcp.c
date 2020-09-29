@@ -651,6 +651,11 @@ static int hf_pfcp_cisco_nexthop_ip_v6 = -1;
 static int hf_pfcp_cisco_bearer_charging_id = -1;
 static int hf_pfcp_cisco_bearer_qci = -1;
 static int hf_pfcp_cisco_bearer_arp = -1;
+static int hf_pfcp_cisco_bli_id = -1;
+static int hf_pfcp_cisco_bli_charging_id = -1;
+static int hf_pfcp_cisco_bli_arp = -1;
+static int hf_pfcp_cisco_bli_5qi = -1;
+static int hf_pfcp_cisco_qci = -1;
 
 // end cisco
 
@@ -835,6 +840,12 @@ static void dissect_pfcp_cisco_qgr_info(tvbuff_t *tvb, packet_info *pinfo, proto
 static void dissect_pfcp_cisco_rule_name_ip_vrf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
 static void dissect_pfcp_cisco_layer2_marking(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
 static void dissect_pfcp_cisco_bearer_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_bli_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_create_bli(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_bli_5qi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_bli_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_bli_charging_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
+static void dissect_pfcp_cisco_qci(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
 
 static const true_false_string pfcp_id_predef_dynamic_tfs = {
     "Predefined by UP",
@@ -1025,7 +1036,13 @@ static value_string_ext pfcp_message_type_ext = VALUE_STRING_EXT_INIT(pfcp_messa
 #define PFCP_IE_CISCO_L2_MARKING                 228
 #define PFCP_IE_CISCO_MONITOR_SUBSCRIBER_INFO    229
 #define PFCP_IE_CISCO_MON_SUB_REPORT_SESS_REP_REQ 230
-// 231 - 236 not used
+#define PFCP_IE_CISCO_CREATE_BLI                 231
+#define PFCP_IE_CISCO_BLI_ID                     232
+#define PFCP_IE_CISCO_QCI                        233
+#define PFCP_IE_CISCO_BLI_5QI                    234
+#define PFCP_IE_CISCO_BLI_ARP                    235
+#define PFCP_IE_CISCO_BLI_CHARGING_ID            236
+// 236 not used
 #define PFCP_IE_CISCO_RATING_GRP                 237
 #define PFCP_IE_CISCO_NEXTHOP                    238
 #define PFCP_IE_CISCO_NEXTHOP_ID                 239
@@ -1230,12 +1247,12 @@ static const value_string pfcp_ie_type[] = {
     { 228, "Cisco Layer2 Marking"},
     { 229, "Cisco Monitor Subscriber Info"},
     { 230, "Cisco MonSub Report Session Rep Req"},
-    { 231, "Unknwon IE"},
-    { 232, "Unknwon IE"},
-    { 233, "Unknwon IE"},
-    { 234, "Unknwon IE"},
-    { 235, "Unknwon IE"},
-    { 236, "Unknwon IE"},
+    { 231, "Cisco Create BLI"},
+    { 232, "Cisco BLI ID"},
+    { 233, "Cisco QCI"},
+    { 234, "Cisco BLI 5QI"},
+    { 235, "Cisco BLI ARP"},
+    { 236, "Cisco BLI Charging ID"},
     { 237, "Cisco Rating Group"},
     { 238, "Cisco NextHop"},
     { 239, "Cisco NextHop ID"},
@@ -3722,14 +3739,14 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     guint32 value;
 
     /* Octet 5  Outer Header Creation Description */
-    proto_tree_add_item_ret_uint(tree, hf_pfcp_outer_hdr_desc, tvb, offset, 2, ENC_BIG_ENDIAN, &value);
-    offset += 2;
+    proto_tree_add_item_ret_uint(tree, hf_pfcp_outer_hdr_desc, tvb, offset, 1, ENC_BIG_ENDIAN, &value);
+    offset += 1;
 
     /* m to (m+3)   TEID
      * The TEID field shall be present if the Outer Header Creation Description requests the creation of a GTP-U header.
      * Otherwise it shall not be present
      */
-    if ((value & 0x0100) || (value & 0x0200)) {
+    if (value <= 1) {
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_teid, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
     }
@@ -3738,7 +3755,7 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     * p to (p+3)   IPv4
     * The IPv4 Address field shall be present if the Outer Header Creation Description requests the creation of a IPv4 header
     */
-    if ((value & 0x0100) || (value & 0x0400) || (value & 0x1000)) {
+    if ((value == 0) || (value == 2) || (value == 4)) {
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_ipv4, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
     }
@@ -3747,7 +3764,7 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     * q to (q+15)   IPv6
     * The IPv6 Address field shall be present if the Outer Header Creation Description requests the creation of a IPv6 header
     */
-    if ((value & 0x0200) || (value & 0x0800) || (value & 0x2000)) {
+    if ((value == 1) || (value == 3) || (value == 5)) {
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_ipv6, tvb, offset, 16, ENC_NA);
         offset += 16;
     }
@@ -3756,25 +3773,9 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     * r to (r+1)   Port Number
     * The Port Number field shall be present if the Outer Header Creation Description requests the creation of a UDP/IP header
     */
-    if ((value & 0x0100) || (value & 0x0400) || (value & 0x0800)) {
+    if ((value >= 2) && (value <= 5)) {
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_port, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
-    }
-
-    /*
-    * t to (t+2)   C-TAG
-    * The C-TAG field shall be present if the Outer Header Creation Description requests the setting of the C-Tag in Ethernet packet
-    */
-    if (value & 0x4000) {
-        offset = decode_pfcp_c_tag(tvb, pinfo, tree, item, offset);
-    }
-
-    /*
-    * u to (u+2)   S-TAG
-    * The S-TAG field shall be present if the Outer Header Creation Description requests the setting of the S-Tag in Ethernet packet
-    */
-    if (value & 0x8000) {
-        offset = decode_pfcp_s_tag(tvb, pinfo, tree, item, offset);
     }
 
     if (offset < length) {
@@ -5729,12 +5730,12 @@ static const pfcp_ie_t pfcp_cisco_ies[] = {
 /*      228 */    { dissect_pfcp_cisco_layer2_marking },
 /*      229 */    { dissect_pfcp_cisco_mon_sub_info },
 /*      230 */    { dissect_pfcp_cisco_mon_sub_report },
-/*      231 */    { NULL },
-/*      232 */    { NULL },
-/*      233 */    { NULL },
-/*      234 */    { NULL },
-/*      235 */    { NULL },
-/*      236 */    { NULL },
+/*      231 */    { dissect_pfcp_cisco_create_bli },
+/*      232 */    { dissect_pfcp_cisco_bli_id },
+/*      233 */    { dissect_pfcp_cisco_qci },
+/*      234 */    { dissect_pfcp_cisco_bli_5qi },
+/*      235 */    { dissect_pfcp_cisco_bli_arp },
+/*      236 */    { dissect_pfcp_cisco_bli_charging_id },
 /*      237 */    { dissect_pfcp_cisco_rating_group },
 /*      238 */    { dissect_pfcp_cisco_nexthop },
 /*      239 */    { dissect_pfcp_cisco_nexthop_id },
@@ -6471,28 +6472,27 @@ dissect_pfcp_cisco_sub_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_bitoctet, tvb, offset, 1, ENC_NA, &bitoctet);
     offset += 1;
 
-    if (bitoctet & 0x1) {
-        proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_imsi_len, tvb, offset, 1, ENC_BIG_ENDIAN, &imsiLen);
-        offset += 1;
+    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_msisdn_len, tvb, offset, 1, ENC_BIG_ENDIAN, &msdisdnLen);
+    offset += 1;
 
-        proto_tree_add_item(tree, hf_pfcp_cisco_imsi_val, tvb, offset, imsiLen, ENC_NA);
-        offset += imsiLen;
-    }
-
-    if (bitoctet & 0x2) {
-        proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_msisdn_len, tvb, offset, 1, ENC_BIG_ENDIAN, &msdisdnLen);
-        offset += 1;
-    
+    if ((bitoctet & 0x2) && (msdisdnLen > 0)) {
         proto_tree_add_item(tree, hf_pfcp_cisco_msisdn_val, tvb, offset, msdisdnLen, ENC_NA);
         offset += msdisdnLen;
     }
 
-    if (bitoctet & 0x4) {
-        proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_imei_len, tvb, offset, 1, ENC_BIG_ENDIAN, &imeiLen);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_pfcp_cisco_imei_val, tvb, offset, imeiLen, ENC_NA);
+    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_imsi_len, tvb, offset, 1, ENC_BIG_ENDIAN, &imsiLen);
+    offset += 1;
+    if ((bitoctet & 0x1) && (imsiLen > 0)) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_imsi_val, tvb, offset, imsiLen, ENC_NA);
         offset += imsiLen;
+    }
+
+    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_imei_len, tvb, offset, 1, ENC_BIG_ENDIAN, &imeiLen);
+    offset += 1;
+    
+    if ((bitoctet & 0x4) && (imeiLen > 0)) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_imei_val, tvb, offset, imeiLen, ENC_NA);
+        offset += imeiLen;
     }
 
     if (bitoctet & 0x8) {
@@ -6566,7 +6566,7 @@ dissect_pfcp_cisco_rule_name(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 {
     int offset = 0;
     proto_tree_add_item(tree, hf_pfcp_cisco_rule_name, tvb, offset, length, ENC_ASCII);
-    offset += 1;
+    offset += length;
 
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
@@ -6840,6 +6840,67 @@ dissect_pfcp_cisco_mon_sub_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
     }
+}
+
+static void 
+dissect_pfcp_cisco_bli_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    proto_tree_add_item(tree, hf_pfcp_cisco_bli_id, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void
+dissect_pfcp_cisco_qci(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    proto_tree_add_item(tree, hf_pfcp_cisco_qci, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void 
+dissect_pfcp_cisco_bli_5qi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    proto_tree_add_item(tree, hf_pfcp_cisco_bli_5qi, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void 
+dissect_pfcp_cisco_bli_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    proto_tree_add_item(tree, hf_pfcp_cisco_bli_arp, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void 
+dissect_pfcp_cisco_bli_charging_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    proto_tree_add_item(tree, hf_pfcp_cisco_bli_charging_id, tvb, offset, 4, ENC_NA);
+    offset += 4;
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void
+dissect_pfcp_cisco_create_bli(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    dissect_pfcp_grouped_ie(tvb, pinfo, tree, item, length, message_type, ett_pfcfp_cisco_elem[PFCP_IE_CISCO_CREATE_BLI - PCFP_CISCO_FIRST_IE], args);
 }
 
 static void
@@ -9584,490 +9645,497 @@ proto_register_pfcp(void)
 
         { &hf_pfcp_cisco_config_action,
         {
-            "Config Action", "cisco_pfcp.cisco.configaction",
+            "Config Action", "cisco_pfcp.configaction",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_correlation_id,
         {
-            "Correlation ID", "cisco_pfcp.cisco.corelid",
+            "Correlation ID", "cisco_pfcp.corelid",
             FT_UINT16, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sub_part_number,
         {
-            "Number of Sub Parts", "cisco_pfcp.cisco.numsubpart",
+            "Number of Sub Parts", "cisco_pfcp.numsubpart",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sub_part_index,
         {
-            "Sub Part Index", "cisco_pfcp.cisco.indexsubpart",
+            "Sub Part Index", "cisco_pfcp.indexsubpart",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_tlv_content,
         {
-            "Content TLV", "cisco_pfcp.cisco.contenttlv",
+            "Content TLV", "cisco_pfcp.contenttlv",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_rbase_name,
         {
-            "RuleBase Name", "cisco_pfcp.cisco.rbasename",
+            "RuleBase Name", "cisco_pfcp.rbasename",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_bitoctet,
         {
-            "bitoctet", "cisco_pfcp.cisco.bitoctet",
+            "bitoctet", "cisco_pfcp.bitoctet",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_msisdn_len,
         {
-            "MSISDN Length", "cisco_pfcp.cisco.msisdnlen",
+            "MSISDN Length", "cisco_pfcp.msisdnlen",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_msisdn_val,
         {
-            "MSISDN", "cisco_pfcp.cisco.msisdn",
+            "MSISDN", "cisco_pfcp.msisdn",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_imsi_len,
         {
-            "IMSI Len", "cisco_pfcp.cisco.imsilen",
+            "IMSI Len", "cisco_pfcp.imsilen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_imsi_val,
         {
-            "IMSI", "cisco_pfcp.cisco.imsi",
+            "IMSI", "cisco_pfcp.imsi",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_imei_len,
         {
-            "IMEI Len", "cisco_pfcp.cisco.imeilen",
+            "IMEI Len", "cisco_pfcp.imeilen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_imei_val,
         {
-            "IMEI", "cisco_pfcp.cisco.imsi",
+            "IMEI", "cisco_pfcp.imsi",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_entity_type,
         {
-            "Entity Type", "cisco_pfcp.cisco.entitytype",
+            "Entity Type", "cisco_pfcp.entitytype",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_query_type,
         {
-            "Query Type", "cisco_pfcp.cisco.querytype",
+            "Query Type", "cisco_pfcp.querytype",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_entity_name_len,
         {
-            "Entity Name Len", "cisco_pfcp.cisco.entitynamelen",
+            "Entity Name Len", "cisco_pfcp.entitynamelen",
             FT_UINT16, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_entity_name_val,
         {
-            "Entity Name", "cisco_pfcp.cisco.entityname",
+            "Entity Name", "cisco_pfcp.entityname",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_classifier_type,
         {
-            "Classifier Type", "cisco_pfcp.cisco.classtype",
+            "Classifier Type", "cisco_pfcp.classtype",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_classifier_len,
         {
-            "Classifier Len", "cisco_pfcp.cisco.classlen",
+            "Classifier Len", "cisco_pfcp.classlen",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_classifier_val,
         {
-            "Classifier", "cisco_pfcp.cisco.classifier",
+            "Classifier", "cisco_pfcp.classifier",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_entity_type,
         {
-            "Response Entity Type", "cisco_pfcp.cisco.resentitytype",
+            "Response Entity Type", "cisco_pfcp.resentitytype",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_part_number,
         {
-            "Part Number", "cisco_pfcp.cisco.partnum",
+            "Part Number", "cisco_pfcp.partnum",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_total_part_number,
         {
-            "Total Part Number", "cisco_pfcp.cisco.totalpartnum",
+            "Total Part Number", "cisco_pfcp.totalpartnum",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_data,
         {
-            "Compressed Context Data", "cisco_pfcp.cisco.resdata",
+            "Compressed Context Data", "cisco_pfcp.resdata",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_type,
         {
-            "Compressed Context Data", "cisco_pfcp.cisco.restype",
+            "Compressed Context Data", "cisco_pfcp.restype",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_response_missing_parts,
         {
-            "Missing Parts", "cisco_pfcp.cisco.restype",
+            "Missing Parts", "cisco_pfcp.restype",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_packet_measurement_spare,
         {
-            "Spare", "cisco_pfcp.cisco.measurespare",
+            "Spare", "cisco_pfcp.measurespare",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_packet_measurement_total,
         {
-            "Total Packets", "cisco_pfcp.cisco.totalpkt",
+            "Total Packets", "cisco_pfcp.totalpkt",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_packet_measurement_uplink,
         {
-            "Uplink Packets", "cisco_pfcp.cisco.uplpkt",
+            "Uplink Packets", "cisco_pfcp.uplpkt",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_packet_measurement_downlink,
         {
-            "Downlink Packets", "cisco_pfcp.cisco.dlpkt",
+            "Downlink Packets", "cisco_pfcp.dlpkt",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_callid,
         {
-            "Callid", "cisco_pfcp.cisco.callid",
-            FT_UINT64, BASE_HEX, NULL, 0,
+            "Callid", "cisco_pfcp.callid",
+            FT_UINT32, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_intercept_id,
         {
-            "Intercept ID", "cisco_pfcp.cisco.interceptid",
+            "Intercept ID", "cisco_pfcp.interceptid",
             FT_UINT64, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_charging_id,
         {
-            "Charging ID", "cisco_pfcp.cisco.chargingid",
+            "Charging ID", "cisco_pfcp.chargingid",
             FT_UINT64, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_bearer_id,
         {
-            "Bearer ID", "cisco_pfcp.cisco.bearerid",
+            "Bearer ID", "cisco_pfcp.bearerid",
             FT_UINT64, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_context_name_len,
         {
-            "Context Name Len", "cisco_pfcp.cisco.ctxnamelen",
+            "Context Name Len", "cisco_pfcp.ctxnamelen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_context_name_val,
         {
-            "Context Name", "cisco_pfcp.cisco.ctxname",
+            "Context Name", "cisco_pfcp.ctxname",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_node_capability_max_session,
         {
-            "Capability Max Session", "cisco_pfcp.cisco.maxsess",
+            "Capability Max Session", "cisco_pfcp.maxsess",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_charging_chars,
         {
-            "Charging chars", "cisco_pfcp.cisco.chargchars",
+            "Charging chars", "cisco_pfcp.chargchars",
             FT_UINT16, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_rat_type,
         {
-            "RAT Type", "cisco_pfcp.cisco.rat_type",
+            "RAT Type", "cisco_pfcp.rat_type",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
         
         { &hf_pfcp_cisco_mcc_mnc_length,
         {
-            "MCC MNC Length", "cisco_pfcp.cisco.mcc_length",
+            "MCC MNC Length", "cisco_pfcp.mcc_length",
             FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_mcc_mnc,
         {
-            "MCC MNC", "cisco_pfcp.cisco.mcc_mnc",
+            "MCC MNC", "cisco_pfcp.mcc_mnc",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sgsn_address_v4,
         {
-            "SGSN Address v4", "cisco_pfcp.cisco.sgsn_addr_v4",
+            "SGSN Address v4", "cisco_pfcp.sgsn_addr_v4",
             FT_IPv4, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sgsn_address_v6,
         {
-            "SGSN Address v6", "cisco_pfcp.cisco.sgsn_addr_v6",
+            "SGSN Address v6", "cisco_pfcp.sgsn_addr_v6",
             FT_IPv6, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ggsn_address_v4,
         {
-            "GGSN Address v4", "cisco_pfcp.cisco.ggsn_addr_v4",
+            "GGSN Address v4", "cisco_pfcp.ggsn_addr_v4",
             FT_IPv4, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ggsn_address_v6,
         {
-            "GGSN Address v6", "cisco_pfcp.cisco.ggsn_addr_v6",
+            "GGSN Address v6", "cisco_pfcp.ggsn_addr_v6",
             FT_IPv6, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_uli_len,
         {
-            "ULI Length", "cisco_pfcp.cisco.uli_length",
+            "ULI Length", "cisco_pfcp.uli_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_uli,
         {
-            "ULI", "cisco_pfcp.cisco.uli",
+            "ULI", "cisco_pfcp.uli",
             FT_BYTES, BASE_NONE,  NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_rule_name,
+        {
+            "Rule Name", "cisco_pfcp.rule_name",
+            FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_radius_len,
         {
-            "Radius String Length", "cisco_pfcp.cisco.radius_length",
+            "Radius String Length", "cisco_pfcp.radius_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_radius,
         {
-            "Radius String", "cisco_pfcp.cisco.radius",
+            "Radius String", "cisco_pfcp.radius",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ms_timezone_len,
         {
-            "MS Timezone Length", "cisco_pfcp.cisco.ms_timezone_length",
+            "MS Timezone Length", "cisco_pfcp.ms_timezone_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ms_timezone,
         {
-            "Radius String", "cisco_pfcp.cisco.ms_timezone",
+            "Radius String", "cisco_pfcp.ms_timezone",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_user_agent_len,
         {
-            "User Agent Length", "cisco_pfcp.cisco.user_agent_length",
+            "User Agent Length", "cisco_pfcp.user_agent_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_user_agent,
         {
-            "User Agent", "cisco_pfcp.cisco.user_agent",
+            "User Agent", "cisco_pfcp.user_agent",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_hash_value_len,
         {
-            "Hash Value Length", "cisco_pfcp.cisco.hash_value_length",
+            "Hash Value Length", "cisco_pfcp.hash_value_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_hash_value,
         {
-            "Hash Value", "cisco_pfcp.cisco.hash_value",
+            "Hash Value", "cisco_pfcp.hash_value",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_called_station_id_len,
         {
-            "Called Station ID Length", "cisco_pfcp.cisco.called_station_id_length",
+            "Called Station ID Length", "cisco_pfcp.called_station_id_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_called_station_id,
         {
-            "Called Station ID", "cisco_pfcp.cisco.called_station_id",
+            "Called Station ID", "cisco_pfcp.called_station_id",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_calling_station_id_len,
         {
-            "Calling Station ID Length", "cisco_pfcp.cisco.calling_station_id_length",
+            "Calling Station ID Length", "cisco_pfcp.calling_station_id_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_calling_station_id,
         {
-            "Calling Station ID", "cisco_pfcp.cisco.calling_station_id",
+            "Calling Station ID", "cisco_pfcp.calling_station_id",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sessid_len,
         {
-            "Session ID Length", "cisco_pfcp.cisco.sessid_length",
+            "Session ID Length", "cisco_pfcp.sessid_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_sessid,
         {
-            "Session ID", "cisco_pfcp.cisco.sessid",
+            "Session ID", "cisco_pfcp.sessid",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ts_profile_len,
         {
-            "TS Profile Length", "cisco_pfcp.cisco.ts_profile_length",
+            "TS Profile Length", "cisco_pfcp.ts_profile_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ts_profile,
         {
-            "TS Profile", "cisco_pfcp.cisco.ts_profile_length",
+            "TS Profile", "cisco_pfcp.ts_profile_length",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ts_subscription_len,
         {
-            "TS Subscription Scheme Length", "cisco_pfcp.cisco.ts_subscription_length",
+            "TS Subscription Scheme Length", "cisco_pfcp.ts_subscription_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_ts_subscription,
         {
-            "TS Subscription", "cisco_pfcp.cisco.ts_subscription",
+            "TS Subscription", "cisco_pfcp.ts_subscription",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_username_len,
         {
-            "Username Length", "cisco_pfcp.cisco.username_length",
+            "Username Length", "cisco_pfcp.username_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_username,
         {
-            "Username", "cisco_pfcp.cisco.username",
+            "Username", "cisco_pfcp.username",
             FT_STRING, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_traffic_opt_policy_id,
         {
-            "Traffic Optimization Policy ID", "cisco_pfcp.cisco.traffic_opt_policy_id",
+            "Traffic Optimization Policy ID", "cisco_pfcp.traffic_opt_policy_id",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_congestion_level,
         {
-            "Congestion Level", "cisco_pfcp.cisco.congestion_level",
+            "Congestion Level", "cisco_pfcp.congestion_level",
             FT_UINT64, BASE_HEX,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_cf_policy_id,
         {
-            "Content Filtering Policy ID", "cisco_pfcp.cisco.cf_policy_id",
+            "Content Filtering Policy ID", "cisco_pfcp.cf_policy_id",
             FT_UINT64, BASE_HEX,  NULL, 0,
             NULL, HFILL }
         },
@@ -10075,154 +10143,154 @@ proto_register_pfcp(void)
 
         { &hf_pfcp_cisco_custid_len,
         {
-            "Customer ID Length", "cisco_pfcp.cisco.custid_length",
+            "Customer ID Length", "cisco_pfcp.custid_length",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_customer_id,
         {
-            "Customer ID", "cisco_pfcp.cisco.uli_length",
+            "Customer ID", "cisco_pfcp.uli_length",
             FT_BYTES, BASE_NONE,  NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gtpp_group_name_len,
         {
-            "GTPP Group Name Len", "cisco_pfcp.cisco.gtppgrouplen",
+            "GTPP Group Name Len", "cisco_pfcp.gtppgrouplen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gtpp_group_name_val,
         {
-            "GTPP Group Name", "cisco_pfcp.cisco.gtppgroupname",
+            "GTPP Group Name", "cisco_pfcp.gtppgroupname",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gtpp_context_id,
         {
-            "GTPP Context ID", "cisco_pfcp.cisco.gtppctxid",
+            "GTPP Context ID", "cisco_pfcp.gtppctxid",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_policy_name_len,
         {
-            "Policy Name Len", "cisco_pfcp.cisco.policynamelen",
+            "Policy Name Len", "cisco_pfcp.policynamelen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_policy_name,
         {
-            "Policy Name", "cisco_pfcp.cisco.policyname",
+            "Policy Name", "cisco_pfcp.policyname",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_policy_type,
         {
-            "Policy Type", "cisco_pfcp.cisco.policytype",
+            "Policy Type", "cisco_pfcp.policytype",
             FT_UINT64, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_diameter_interim_interval,
         {
-            "Diameter Interval", "cisco_pfcp.cisco.diaminterval",
+            "Diameter Interval", "cisco_pfcp.diaminterval",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_aaa_group_name_len,
         {
-            "AAA Group Name Len", "cisco_pfcp.cisco.aaanamelen",
+            "AAA Group Name Len", "cisco_pfcp.aaanamelen",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_aaa_group_name_val,
         {
-            "AAA Group Name", "cisco_pfcp.cisco.aaanamelen",
+            "AAA Group Name", "cisco_pfcp.aaanamelen",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_aaa_group_context_id,
         {
-            "AAA Context ID", "cisco_pfcp.cisco.aaanctxid",
+            "AAA Context ID", "cisco_pfcp.aaanctxid",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_radius_interim_interval,
         {
-            "AAA Interval", "cisco_pfcp.cisco.aaainterval",
+            "AAA Interval", "cisco_pfcp.aaainterval",
             FT_UINT64, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gy_offline_charging,
         {
-            "Gy Offline Charging", "cisco_pfcp.cisco.gyoffline",
+            "Gy Offline Charging", "cisco_pfcp.gyoffline",
             FT_BOOLEAN, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_charging_disabled,
         {
-            "Charging Disabled", "cisco_pfcp.cisco.charging_disabled",
+            "Charging Disabled", "cisco_pfcp.charging_disabled",
             FT_BOOLEAN, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gtpp_dictionnary,
         {
-            "GTPP Dictionary", "cisco_pfcp.cisco.gtppdic",
+            "GTPP Dictionary", "cisco_pfcp.gtppdic",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_cc_group_name_len,
         {
-            "CC Group Name Length", "cisco_pfcp.cisco.cc_group_len",
+            "CC Group Name Length", "cisco_pfcp.cc_group_len",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_cc_group_name_val,
         {
-            "CC Group Name", "cisco_pfcp.cisco.cc_group_name",
+            "CC Group Name", "cisco_pfcp.cc_group_name",
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_gy_offline_charging_status,
         {
-            "Gy Offline Status", "cisco_pfcp.cisco.gyoffstatus",
+            "Gy Offline Status", "cisco_pfcp.gyoffstatus",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_traffic_class,
         {
-            "Traffic Class", "cisco_pfcp.cisco.trafclass",
+            "Traffic Class", "cisco_pfcp.trafclass",
             FT_UINT16, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_copy_inner_outer_flag,
         {
-            "Copy Inner/Outter flag", "cisco_pfcp.cisco.inoutflag",
+            "Copy Inner/Outter flag", "cisco_pfcp.inoutflag",
             FT_UINT16, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
         { &hf_pfcp_cisco_inner_mark,
         {
-            "Inner Mark", "cisco_pfcp.cisco.inner_mark",
+            "Inner Mark", "cisco_pfcp.inner_mark",
             FT_UINT16, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
@@ -10476,6 +10544,36 @@ proto_register_pfcp(void)
         { &hf_pfcp_cisco_bearer_arp,
         { "ARP", "cisco_pfcp.bearer_info.arp",
             FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_qci,
+        { "QCI", "cisco_pfcp.qci",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_bli_id,
+        { "BLI ID", "cisco_pfcp.bli.id",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_bli_5qi,
+        { "BLI 5QI", "cisco_pfcp.bli.5qi",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_bli_arp,
+        { "BLI ARP", "cisco_pfcp.bli.arp",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_bli_charging_id,
+        { "BLI Charging ID", "cisco_pfcp.bli.charging_id",
+            FT_UINT32, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
