@@ -1,4 +1,4 @@
-# staros_wireshark_dissectors
+# Cisco PFCP Wireshark Dissector
 
 A modified version of PFCP dissector for Wireshark supporting Cisco private IE and
 compressed format.
