@@ -521,6 +521,9 @@ static int hf_pfcp_cisco_imsi_len = -1;
 static int hf_pfcp_cisco_imsi_val = -1;
 static int hf_pfcp_cisco_entity_type = -1;
 static int hf_pfcp_cisco_query_type = -1;
+static int hf_pfcp_cisco_query_type_flags_spare = -1;
+static int hf_pfcp_cisco_query_type_flags_q_all = -1;
+static int hf_pfcp_cisco_query_type_flags_q_type = -1;
 static int hf_pfcp_cisco_spare = -1;
 static int hf_pfcp_cisco_entity_name_len = -1;
 static int hf_pfcp_cisco_entity_name_val = -1;
@@ -718,7 +721,7 @@ static int ett_pfcp_cisco_qgr_flags = -1;
 static int ett_pfcp_cisco_ue_ip_vrf_flags = -1;
 static int ett_pfcp_cisco_nexthop_ip_flags = -1;
 static int ett_pfcp_cisco_nexthop = -1;
-
+static int ett_pfcp_cisco_query_type_flags = -1;
 // end cisco
 
 static expert_field ei_pfcp_ie_reserved = EI_INIT;
@@ -6332,19 +6335,30 @@ dissect_pfcp_cisco_query_params(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 {
     int offset = 0;
     guint32 len;
+    guint64 octet;
 
     proto_tree_add_item(tree, hf_pfcp_cisco_entity_type, tvb, offset, 1, ENC_NA);
     offset += 1;
 
-    // todo convert to bitmask
-    proto_tree_add_item(tree, hf_pfcp_cisco_query_type, tvb, offset, 1, ENC_NA);
+    static const int * pfcp_cisco_query_type_flags[] = {
+        &hf_pfcp_cisco_query_type_flags_spare,
+        &hf_pfcp_cisco_query_type_flags_q_all,
+        &hf_pfcp_cisco_query_type_flags_q_type,
+        NULL
+    };
+
+    proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_pfcp_cisco_query_type,
+        ett_pfcp_cisco_query_type_flags, pfcp_cisco_query_type_flags, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT, &octet);
     offset += 1;
 
-    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_entity_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &len);
-    offset += 1;
-
-    proto_tree_add_item(tree, hf_pfcp_cisco_entity_name_val, tvb, offset, len, ENC_ASCII);
-    offset += len;
+    if ((octet & 0x1) == 0) {
+        proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_entity_name_len, tvb, offset, 2, ENC_BIG_ENDIAN, &len);
+        offset += 2;
+        if (len > 0) {
+            proto_tree_add_item(tree, hf_pfcp_cisco_entity_name_val, tvb, offset, len, ENC_ASCII);
+            offset += len;
+        }
+    }
 
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
@@ -6748,45 +6762,6 @@ dissect_pfcp_cisco_sub_params(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
 
 #define PFCP_MONSUB_MAX_PROTOCOL_ID 128
-
-
-// static void
-// dissect_pfcp_cisco_sdf_filter(tvbuff_t *tvb, proto_tree *tree, int *of)
-// {
-//     static const int * pfcp_cisco_mon_sub_proto_flags[] = {
-//         &hf_pfcp_cisco_mon_sub_flags_fd,
-//         &hf_pfcp_cisco_mon_sub_flags_ttc,
-//         &hf_pfcp_cisco_mon_sub_flags_spi,
-//         &hf_pfcp_cisco_mon_sub_flags_fl
-//         NULL
-//     };
-
-//     int offset = *of;
-//     proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_pfcp_cisco_mon_sub_proto_flags,
-//         ett_pfcp_cisco_mon_sub_proto_flags, pfcp_cisco_mon_sub_proto_flags, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT, &octet);
-//     offset += 1;
-
-//     if (octet & 0x1) {
-//         proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_mon_sub_proto_descr_len, tvb, offset, 2, ENC_NA, &len);
-//         offset += 2;
-//         proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_proto_descr, tvb, offset, len, ENC_NA);
-//         offset += len;
-//     }
-//     if (octet & 0x2) {
-//         proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_proto_tos_tc, tvb, offset, 4, ENC_NA);
-//         offset += 2;
-//     }
-//     if (octet & 0x4) {
-//         proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_proto_spi, tvb, offset, 4, ENC_NA);
-//         offset += 4;
-//     }
-//     if (octet & 0x8) {
-//         proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_proto_label, tvb, offset, 3, ENC_NA);
-//         offset += 3;
-//     }
-//     *of = offset;
-//     return;
-// }
 
 
 static void
@@ -9748,6 +9723,27 @@ proto_register_pfcp(void)
             NULL, HFILL }
         },
 
+        { &hf_pfcp_cisco_query_type_flags_spare,
+        {
+            "Spare", "cisco_pfcp.querytype.spare",
+            FT_UINT8, BASE_HEX, NULL, 0xFC,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_query_type_flags_q_all,
+        {
+            "Q_ALL", "cisco_pfcp.querytype.q_all",
+            FT_UINT8, BASE_HEX, NULL, 0x1,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_query_type_flags_q_type,
+        {
+            "Q_Type", "cisco_pfcp.querytype.q_type",
+            FT_UINT8, BASE_HEX, NULL, 0x2,
+            NULL, HFILL }
+        },
+
         { &hf_pfcp_cisco_entity_name_len,
         {
             "Entity Name Len", "cisco_pfcp.entitynamelen",
@@ -10616,7 +10612,7 @@ proto_register_pfcp(void)
     };
 
     /* Setup protocol subtree array */
-#define NUM_INDIVIDUAL_ELEMS_PFCP    57
+#define NUM_INDIVIDUAL_ELEMS_PFCP    58
     gint *ett[NUM_INDIVIDUAL_ELEMS_PFCP +
         (NUM_PFCP_IES - 1) + (NUM_PFCP_CISCO_IES - 1)];
 
@@ -10677,6 +10673,7 @@ proto_register_pfcp(void)
     ett[54] = &ett_pfcp_cisco_ue_ip_vrf_flags;
     ett[55] = &ett_pfcp_cisco_nexthop_ip_flags;
     ett[56] = &ett_pfcp_cisco_nexthop;
+    ett[57] = &ett_pfcp_cisco_query_type_flags;
 
     static ei_register_info ei[] = {
         { &ei_pfcp_ie_reserved,{ "cisco_pfcp.ie_id_reserved", PI_PROTOCOL, PI_ERROR, "Reserved IE value used", EXPFILL } },
