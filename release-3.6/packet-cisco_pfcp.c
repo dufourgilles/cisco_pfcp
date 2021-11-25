@@ -3580,7 +3580,7 @@ dissect_pfcp_time_of_first_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
      * format as defined in section 6 of IETF RFC 5905
      */
 
-    proto_tree_add_item(tree, hf_pfcp_time_of_first_packet, tvb, offset, 4, ENC_TIME_SECS|ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_time_of_first_packet, tvb, offset, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     offset += 4;
 
     if (offset < length) {
@@ -3599,7 +3599,7 @@ dissect_pfcp_time_of_last_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     * format as defined in section 6 of IETF RFC 5905
     */
 
-    proto_tree_add_item(tree, hf_pfcp_time_of_last_packet, tvb, offset, 4, ENC_TIME_SECS|ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_time_of_last_packet, tvb, offset, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     offset += 4;
 
     if (offset < length) {
@@ -3750,7 +3750,7 @@ dissect_pfcp_start_time(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pro
     * the first four octets of the 64-bit timestamp format as defined in section 6 of IETF RFC 5905 [26].
     */
 
-    proto_tree_add_item(tree, hf_pfcp_start_time, tvb, offset, 4, ENC_TIME_SECS|ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_start_time, tvb, offset, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     offset += 4;
 
     if (offset < length) {
@@ -3770,7 +3770,7 @@ dissect_pfcp_end_time(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto
     * the first four octets of the 64-bit timestamp format as defined in section 6 of IETF RFC 5905 [26].
     */
 
-    proto_tree_add_item(tree, hf_pfcp_end_time, tvb, offset, 4, ENC_TIME_SECS|ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_end_time, tvb, offset, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     offset += 4;
 
     if (offset < length) {
@@ -8456,12 +8456,12 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_time_of_first_packet,
         { "Time of First Packet", "cisco_pfcp.time_of_first_packet",
-            FT_STRING, BASE_NONE, NULL, 0,
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_pfcp_time_of_last_packet,
         { "Time of Last Packet", "cisco_pfcp.time_of_last_packet",
-            FT_STRING, BASE_NONE, NULL, 0,
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_pfcp_dst_interface,
@@ -8833,12 +8833,12 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_start_time,
         { "Start Time", "cisco_pfcp.start_time",
-            FT_STRING, BASE_NONE, NULL, 0,
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_pfcp_end_time,
         { "End Time", "cisco_pfcp.start_time",
-            FT_STRING, BASE_NONE, NULL, 0,
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_pfcp_quota_holding_time,
