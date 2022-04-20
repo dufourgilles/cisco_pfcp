@@ -141,6 +141,7 @@ static int hf_pfcp_sdf_filter_id = -1;
 static int hf_pfcp_out_hdr_desc = -1;
 static int hf_pfcp_far_id_flg = -1;
 static int hf_pfcp_far_id = -1;
+static int hf_pfcp_far_id_short = -1;
 static int hf_pfcp_urr_id_flg = -1;
 static int hf_pfcp_urr_id = -1;
 static int hf_pfcp_qer_id_flg = -1;
@@ -3795,7 +3796,7 @@ decode_pfcp_urr_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, prot
     urr_id_flag = tvb_get_guint8(tvb, offset) & 0x80;
     urr_id = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
 
-    proto_tree_add_item(tree, hf_pfcp_urr_id_flg, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_urr_id_flg, tvb, offset, 1, ENC_BIG_ENDIAN);
     //proto_tree_add_item_ret_uint(tree, hf_pfcp_urr_id, tvb, offset, 4, ENC_BIG_ENDIAN, &urr_id);
     proto_tree_add_item(tree, hf_pfcp_urr_id, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
@@ -4457,7 +4458,7 @@ dissect_pfcp_deact_predef_rules(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 static int
 decode_pfcp_far_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, gint offset, guint16 length)
 {
-    guint32 far_id, mask = 0x7fffffff;
+    guint32 far_id = 0;
     guint8 far_id_flag;
     /* Octet 5 to 8 FAR ID value
      * The bit 8 of octet 5 is used to indicate if the Rule ID is dynamically allocated
@@ -4465,18 +4466,23 @@ decode_pfcp_far_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, prot
      * the Rule is dynamically provisioned by the CP Function. If set to 1, it indicates that
      * the Rule is predefined in the UP Function.
      */
-    far_id_flag = tvb_get_guint8(tvb,offset) & 0x80;
+    far_id_flag = tvb_get_guint8(tvb, offset) & 0x80;
 
-    proto_tree_add_item(tree, hf_pfcp_far_id_flg, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item_ret_uint(tree, hf_pfcp_far_id, tvb, offset, length, ENC_BIG_ENDIAN, &far_id);
-    offset += length;
-    if (length < 4) {
-        mask = mask >> (8 *(4 - length));
+    proto_tree_add_item(tree, hf_pfcp_far_id_flg, tvb, offset, 1, ENC_NA);
+
+    if (length - offset >= 4) {
+        far_id = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN) & 0x7fffffff;
+        proto_tree_add_item(tree, hf_pfcp_far_id    , tvb, offset, 4, ENC_BIG_ENDIAN);
+        offset += 4;
+    } else if (length - offset >= 2) {
+        far_id = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) & 0x7fff;
+        proto_tree_add_item(tree, hf_pfcp_far_id_short    , tvb, offset, 2, ENC_BIG_ENDIAN);
+        offset += 2;
     }
     proto_item_append_text(item, "%s %u",
         ((far_id_flag)? pfcp_id_predef_dynamic_tfs.true_string : pfcp_id_predef_dynamic_tfs.false_string),
-        (far_id & mask));
-
+        far_id
+    );
     return offset;
 }
 
@@ -4507,7 +4513,7 @@ decode_pfcp_qer_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, prot
     */
     qer_id_flag = tvb_get_guint8(tvb, offset) & 0x80;
 
-    proto_tree_add_item(tree, hf_pfcp_qer_id_flg, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_pfcp_qer_id_flg, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item_ret_uint(tree, hf_pfcp_qer_id, tvb, offset, 4, ENC_BIG_ENDIAN, &qer_id);
     offset += 4;
 
@@ -8341,7 +8347,7 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_far_id_flg,
         { "Allocation type", "cisco_pfcp.far_id_flg",
-            FT_BOOLEAN, 32, TFS(&pfcp_id_predef_dynamic_tfs), 0x80000000,
+            FT_BOOLEAN, 8, TFS(&pfcp_id_predef_dynamic_tfs), 0x80,
             NULL, HFILL }
         },
         { &hf_pfcp_far_id,
@@ -8349,9 +8355,14 @@ proto_register_pfcp(void)
             FT_UINT32, BASE_DEC, NULL, 0x7fffffff,
             NULL, HFILL }
         },
+        { &hf_pfcp_far_id_short,
+        { "FAR ID", "cisco_pfcp.far_id_short",
+            FT_UINT16, BASE_DEC, NULL, 0x7fff,
+            NULL, HFILL }
+        },
         { &hf_pfcp_urr_id_flg,
         { "Allocation type", "cisco_pfcp.urr_id_flg",
-            FT_BOOLEAN, 32, TFS(&pfcp_id_predef_dynamic_tfs), 0x80000000,
+            FT_BOOLEAN, 8, TFS(&pfcp_id_predef_dynamic_tfs), 0x80,
             NULL, HFILL }
         },
         { &hf_pfcp_urr_id,
@@ -8361,7 +8372,7 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_qer_id_flg,
         { "Allocation type", "cisco_pfcp.qer_id_flg",
-            FT_BOOLEAN, 32, TFS(&pfcp_id_predef_dynamic_tfs), 0x80000000,
+            FT_BOOLEAN, 8, TFS(&pfcp_id_predef_dynamic_tfs), 0x80,
             NULL, HFILL }
         },
         { &hf_pfcp_qer_id,
