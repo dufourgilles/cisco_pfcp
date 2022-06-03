@@ -3909,7 +3909,7 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     * r to (r+1)   Port Number
     * The Port Number field shall be present if the Outer Header Creation Description requests the creation of a UDP/IP header
     */
-    if ((value == 0x0400) || (value == 0x0800) || (value == 0x0C00)) {
+    if (((value &0x0FFF) >> 8) > 0) {
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_port, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
     }
