@@ -524,6 +524,7 @@ static int hf_pfcp_cisco_correlation_id = -1;
 static int hf_pfcp_cisco_sub_part_number = -1;
 static int hf_pfcp_cisco_sub_part_index = -1;
 static int hf_pfcp_cisco_tlv_content = -1;
+static int hf_pfcp_cisco_tlv_content_type = -1;
 static int hf_pfcp_cisco_rbase_name = -1;
 static int hf_pfcp_cisco_bitoctet = -1;
 static int hf_pfcp_cisco_msisdn_len = -1;
@@ -6413,10 +6414,88 @@ dissect_pfcp_cisco_sub_part_index(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     return;
 }
 
+static const value_string pfcp_content_tlv_vals[] = {
+
+    {  0, ""                                            },
+    {  1, "RULE_DEF"                                    },
+    {  2, "RB_ACTION_PRIORITY"                          },
+    {  3, "CHARGING_ACTION"                             },
+    {  4, "GROUP_OF_RULEDEFS"                           },
+    {  5, "RDEF_IN_GOR"                                 },
+    {  6, "QOS_GROUP_OF_RULEDEFS"                       },
+    {  7, "RDEF_IN_QOS_GOR"                             },
+    {  8, "SERVICE_CHAIN"                               },
+    {  9, "NSH_FORMAT"                                  },
+    { 10, "NSH_FIELD}"                                  },
+    { 11, "TRAFFIC_STEER_APP"                           },
+    { 12, "RB_L3_L4_L7_INFO"                            },
+    { 13, "ACS_LEVEL_INFO"                              },
+    { 14, "RB_RULE_N_ROUTE"                             },
+    { 15, "APN_INFO"                                    },
+    { 16, "EDR_FORMAT"                                  },
+    { 17, "LI_CONFIG"                                   },
+    { 18, "CREDIT_CONTROL_GROUP"                        },
+    { 19, "RB_PP_RULE_N_ACTION"                         },
+    { 20, "PLUGIN_VER"                                  },
+    { 21, "PKT_FILTER"                                  },
+    { 22, "CA PKTF"                                     },
+    { 23, "TRIGGER ACTION"                              },
+    { 24, "TRIGGER CONDITION"                           },
+    { 25, "SUBSCRIBER CLASS"                            },
+    { 26, "SERVICE SCHEME"                              },
+    { 27, "SERVICE SCHEME TRIGGER"                      },
+    { 28, "SERVICE SCHEME TRIGGER CONDITION AND ACTION" },
+    { 29, "SUBSCRIBER BASE"                             },
+    { 30, "SUBSCRIBER BASE SCLASS AND SCHEME"           },
+    { 31, "P2P_ADS_GROUP"                               },
+    { 32, "BANDWIDTH POLICY"                            },
+    { 33, "BANDWIDTH POLICY ID"                         },
+    { 34, "BANDWIDTH POLICY GROUP LIMIT"                },
+    { 35, "ACCOUNTING POLICY"                           },
+    { 36, "GTPP GROUP"                                  },
+    { 37, "AAA GROUP"                                   },
+    { 38, "XHEADER"                                     },
+    { 39, "CF_POLICY"                                   },
+    { 40, "CRP_IN_CF_POLICY"                            },
+    { 41, "NAT_GLOBAL_CONFIG"                           },
+    { 42, "NAT_POLICY"                                  },
+    { 43, "NAT_POLICY_RULE_N_ACTION"                    },
+    { 44, "TIMEDEF"                                     },
+    { 45, "GROUP_OF_PREFIXED_URLS"                      },
+    { 46, "RB_URL_PREPROCESSING"                        },
+    { 47, "ACL_INFO"                                    },
+    { 48, "ACS_LEVEL_NAT_INFO"                          },
+    { 49, "TRAFFIC OPTIMIZATION PROFILE"                },
+    { 50, "TRAFFIC OPTIMIZATION POLICY"                 },
+    { 51, "MON_KEY_URR_ID_PREFIX"                       },
+    { 52, "URL_SNI_POOL"                                },
+    { 53, "TRAFFIC OPTIMIZATION POLICY_2123"            },
+    { 54, "CREDIT_CONTROL_GROUP_TAC"                    },
+    { 56, "SERVER_LIST"                                 },
+    { 56, "SERVER_LIST_IPADDR"                          },
+    { 57, "APN_INFO_COMP"                               },
+    { 58, "DCCA_CONFIG_2124"                            },
+    { 60, "PFD CONFIG END"                              },
+    { 61, "TRIGGER_ACTION_2125"                         },
+    { 62, "PFD_SX_EDNS_FIELDS"                          },
+    { 63, "PFD_SX_EDNS_HEADER"                          },
+    { 64, "PFD_SX_EDNS_SPROFILE"                        },
+    { 70, "PFD_SX_GTPP_GROUP_2123"                      },
+    { 72, "PFD TLV MAX"                                 },
+    { 240, "DONE"                                       },
+    { 251, "REDUNDANCY_INFO"                            },
+    { 253, "IP_POOL_INFO"                               },
+    { 255, "INVALID"                                    },
+};
+
 static void
 dissect_pfcp_cisco_content_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
 {
     //todo dissect TLV
+    guint32 value;
+
+    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_tlv_content_type, tvb, 0, 1, ENC_BIG_ENDIAN, &value);
+    proto_item_append_text(item, "%s", val_to_str_const(value, pfcp_content_tlv_vals, "Unknown"));
     proto_tree_add_item(tree, hf_pfcp_cisco_tlv_content, tvb, 0, length, ENC_NA);
 }
 
@@ -10008,6 +10087,12 @@ proto_register_pfcp(void)
         {
             "Content TLV", "cisco_pfcp.cisco.contenttlv",
             FT_BYTES, BASE_NONE, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_tlv_content_type,
+        { "Content Type", "cisco_pfcp.cisco.contenttlv.type",
+            FT_UINT8, BASE_DEC, VALS(pfcp_content_tlv_vals), 0x0,
             NULL, HFILL }
         },
 
