@@ -13,6 +13,12 @@ MAC OS Wireshark 3.6 plugin version 0.0.11 [download](http://www.gdnet.be/Wiresh
 
 Win64 Wireshark 3.6 plugin version 0.0.11 [download](http://www.gdnet.be/Wireshark/cisco_pfcp_3_6.dll)
 
+Win64 Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.12a.dll)
+
+MAC OS Intel Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/mac_cisco_pfcp_0.0.12a_intel.so)
+
+MAC OS ARM Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/mac_cisco_pfcp_0.0.12a_arm.so)
+
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
     There is another hierarchical level for each Wireshark plugin type (libwireshark, libwiretap and codecs).
