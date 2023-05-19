@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "packet-pfcfp-tlv-ie.h"
 
 // enum IPPoolOperationType
@@ -97,9 +96,10 @@ static const value_string pfcp_content_tlv_vals[] = {
     {255, "INVALID"},
 };
 
-// subtree
-static int ett_pfcp_cisco_content_tlv = -1;
+static dissector_handle_t cisco_pfcp_tlv_handle;
 
+// subtree
+int ett_pfcp_cisco_content_tlv = -1;
 static int hf_pfcp_cisco_tlv_content_type = -1;
 static int hf_pfcp_cisco_tlv_content_action = -1;
 static int hf_pfcp_cisco_tlv_content_numtlv = -1;
@@ -133,11 +133,17 @@ static int hf_pfcp_cisco_tlv_content_ippool_chunk_id = -1;
 static int hf_pfcp_cisco_tlv_content_ippool_chunk_ipv4 = -1;
 static int hf_pfcp_cisco_tlv_content_ippool_chunk_ipv6 = -1;
 
-#define add_hf_pfcp_cisco_tlv_content()                                             \
-    {&hf_pfcp_cisco_tlv_content_type,                                               \
-     {"Content Type", "cisco_pfcp.cisco.contenttlv.type",                           \
-      FT_UINT8, BASE_DEC, VALS(pfcp_content_tlv_vals), 0x0,                         \
-      NULL, HFILL}},                                                                \
+static void dissect_pfcp_tlv_ruledef(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
+static void dissect_pfcp_content_rule(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length, proto_item *rule_item);
+static void dissect_pfcp_content_rule_line(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
+static void dissect_pfcp_content_ip_pool(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
+
+
+#define include_cisco_tlv_hf()                                                      \
+        {&hf_pfcp_cisco_tlv_content_type,                                           \
+            {"Content Type", "cisco_pfcp.cisco.contenttlv.type",                    \
+            FT_UINT8, BASE_DEC, VALS(pfcp_content_tlv_vals), 0x0,                   \
+            NULL, HFILL}},                                                          \
         {&hf_pfcp_cisco_tlv_content_action,                                         \
          {"Content Action", "cisco_pfcp.cisco.contenttlv.action",                   \
           FT_UINT8, BASE_DEC, NULL, 0x0,                                            \
@@ -186,108 +192,100 @@ static int hf_pfcp_cisco_tlv_content_ippool_chunk_ipv6 = -1;
          {"Ruledef URL Pool", "cisco_pfcp.cisco.contenttlv.ruledef.urlpool",        \
           FT_STRING, BASE_NONE, NULL, 0x0,                                          \
           NULL, HFILL}},                                                            \
-        {&hf_pfcp_cisco_tlv_content_compress_len,                                \
-         {"Compress Length", "cisco_pfcp.cisco.contenttlv.comporess_len",        \
-          FT_UINT16, BASE_DEC, NULL, 0x0,                                          \
+        {&hf_pfcp_cisco_tlv_content_compress_len,                                   \
+         {"Compress Length", "cisco_pfcp.cisco.contenttlv.comporess_len",           \
+          FT_UINT16, BASE_DEC, NULL, 0x0,                                           \
           NULL, HFILL}},                                                            \
         {&hf_pfcp_cisco_tlv_content_ruledef_p2p_id,                                 \
          {"Ruledef P2P ID", "cisco_pfcp.cisco.contenttlv.ruledef.p2p.id",           \
           FT_UINT32, BASE_DEC, NULL, 0x0,                                           \
           NULL, HFILL}},                                                            \
         {&hf_pfcp_cisco_tlv_content_ruleline_valid,                                 \
-         {"Ruledef Rule Line Valid", "cisco_pfcp.cisco.contenttlv.ruleline.valid",           \
-          FT_BOOLEAN, BASE_NONE, NULL, 0x0,                                           \
+         {"Ruledef Rule Line Valid", "cisco_pfcp.cisco.contenttlv.ruleline.valid",  \
+          FT_BOOLEAN, BASE_NONE, NULL, 0x0,                                         \
           NULL, HFILL}},                                                            \
         {&hf_pfcp_cisco_tlv_content_ruleline_proto,                                 \
          {"RuleLine Proto", "cisco_pfcp.cisco.contenttlv.ruleline.proto",           \
-          FT_UINT8, BASE_DEC, NULL, 0x0,                                           \
+          FT_UINT8, BASE_DEC, NULL, 0x0,                                            \
           NULL, HFILL}},                                                            \
-        { &hf_pfcp_cisco_tlv_content_ruleline_ipv4,\
-        { "RuleLine IP v4", "cisco_pfcp.cisco.contenttlv.ruleline.ipv4",\
-            FT_IPv4, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ruleline_xheader,\
-        { "Rule XHeader", "cisco_pfcp.cisco.contenttlv.ruleline.xheader",\
-            FT_STRING, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ruleline_disp,\
-        { "Rule Disp", "cisco_pfcp.cisco.contenttlv.ruleline.disp",\
-            FT_STRING, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ruleline_lowercase,\
-        { "Rule Lower Case", "cisco_pfcp.cisco.contenttlv.ruleline.lowercase",\
-            FT_STRING, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_type,\
-        { "IP Pool Type", "cisco_pfcp.cisco.contenttlv.ippool.type",\
-            FT_UINT8, BASE_HEX,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        {&hf_pfcp_cisco_tlv_content_ippool_optype,                                               \
-        {"IP Pool OP Type", "cisco_pfcp.cisco.contenttlv.ippol.optype",                           \
-        FT_UINT8, BASE_DEC, VALS(pfcfp_ip_pool_op_type), 0x0,                          \
-        NULL, HFILL}}, \
-        { &hf_pfcp_cisco_tlv_content_ippool_ctxt_name,\
-        { "IP Pool Context", "cisco_pfcp.cisco.contenttlv.ipool.context",\
-            FT_STRING, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_idtype,\
-        { "IP Pool ID Type", "cisco_pfcp.cisco.contenttlv.ipool.idtype",\
-            FT_UINT8, BASE_HEX,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_id,\
-        { "IP Pool ID", "cisco_pfcp.cisco.contenttlv.ipool.id",\
-            FT_UINT16, BASE_HEX,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-         { &hf_pfcp_cisco_tlv_content_ippool_vrf_name,\
-        { "IP Pool VRF", "cisco_pfcp.cisco.contenttlv.ipool.vrfname",\
-            FT_STRING, BASE_NONE,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_chunk_size,\
-        { "IP Pool Chunk size", "cisco_pfcp.cisco.contenttlv.ippool.chunk.size",\
-            FT_UINT32, BASE_DEC,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_chunk_id,\
-        { "IP Pool Chunk ID", "cisco_pfcp.cisco.contenttlv.ippool.chunk.id",\
-            FT_UINT32, BASE_HEX,  NULL, 0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_chunk_ipv4,\
-        { "Chunk IPv4", "cisco_pfcp.cisco.contenttlv.ippool.chunk.ipv4",\
-            FT_IPv4, BASE_NONE, NULL, 0x0,\
-            NULL, HFILL }\
-        },\
-        { &hf_pfcp_cisco_tlv_content_ippool_chunk_ipv6,\
-        { "Chunk IPv6", "cisco_pfcp.cisco.contenttlv.ippool.chunk.ipv6",\
-            FT_IPv6, BASE_NONE, NULL, 0x0,\
-            NULL, HFILL }\
-        },\
-        {                                                                               \
-            &hf_pfcp_cisco_tlv_content_ruledef_p2p_name,                                \
-            {                                                                           \
-                "Ruledef P2P Name", "cisco_pfcp.cisco.contenttlv.ruledef.p2p.name",     \
-                    FT_STRING, BASE_NONE, NULL, 0x0,                                    \
-                    NULL, HFILL                                                         \
-            }                                                                           \
-    }
-
-static void dissect_pfcp_tlv_ruledef(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
-static void dissect_pfcp_content_rule(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length, proto_item *rule_item);
-static void dissect_pfcp_content_rule_line(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
-static void dissect_pfcp_content_ip_pool(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint16 length);
+        { &hf_pfcp_cisco_tlv_content_ruleline_ipv4,                                 \
+        { "RuleLine IP v4", "cisco_pfcp.cisco.contenttlv.ruleline.ipv4",            \
+            FT_IPv4, BASE_NONE,  NULL, 0,                                           \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ruleline_xheader,                              \
+        { "Rule XHeader", "cisco_pfcp.cisco.contenttlv.ruleline.xheader",           \
+            FT_STRING, BASE_NONE,  NULL, 0,                                         \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ruleline_disp,                                 \
+        { "Rule Disp", "cisco_pfcp.cisco.contenttlv.ruleline.disp",                 \
+            FT_STRING, BASE_NONE,  NULL, 0,                                         \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ruleline_lowercase,                            \
+        { "Rule Lower Case", "cisco_pfcp.cisco.contenttlv.ruleline.lowercase",      \
+            FT_STRING, BASE_NONE,  NULL, 0,                                         \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_type,                                   \
+        { "IP Pool Type", "cisco_pfcp.cisco.contenttlv.ippool.type",                \
+            FT_UINT8, BASE_HEX,  NULL, 0,                                           \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        {&hf_pfcp_cisco_tlv_content_ippool_optype,                                  \
+        {"IP Pool OP Type", "cisco_pfcp.cisco.contenttlv.ippol.optype",             \
+        FT_UINT8, BASE_DEC, VALS(pfcfp_ip_pool_op_type), 0x0,                       \
+        NULL, HFILL}},                                                              \
+        { &hf_pfcp_cisco_tlv_content_ippool_ctxt_name,                              \
+        { "IP Pool Context", "cisco_pfcp.cisco.contenttlv.ipool.context",           \
+            FT_STRING, BASE_NONE,  NULL, 0,                                         \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_idtype,                                 \
+        { "IP Pool ID Type", "cisco_pfcp.cisco.contenttlv.ipool.idtype",            \
+            FT_UINT8, BASE_HEX,  NULL, 0,                                           \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_id,                                     \
+        { "IP Pool ID", "cisco_pfcp.cisco.contenttlv.ipool.id",                     \
+            FT_UINT16, BASE_HEX,  NULL, 0,                                          \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+         { &hf_pfcp_cisco_tlv_content_ippool_vrf_name,                              \
+        { "IP Pool VRF", "cisco_pfcp.cisco.contenttlv.ipool.vrfname",               \
+            FT_STRING, BASE_NONE,  NULL, 0,                                         \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_chunk_size,                             \
+        { "IP Pool Chunk size", "cisco_pfcp.cisco.contenttlv.ippool.chunk.size",    \
+            FT_UINT32, BASE_DEC,  NULL, 0,                                          \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_chunk_id,                               \
+        { "IP Pool Chunk ID", "cisco_pfcp.cisco.contenttlv.ippool.chunk.id",        \
+            FT_UINT32, BASE_HEX,  NULL, 0,                                          \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_chunk_ipv4,                             \
+        { "Chunk IPv4", "cisco_pfcp.cisco.contenttlv.ippool.chunk.ipv4",            \
+            FT_IPv4, BASE_NONE, NULL, 0x0,                                          \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ippool_chunk_ipv6,                             \
+        { "Chunk IPv6", "cisco_pfcp.cisco.contenttlv.ippool.chunk.ipv6",            \
+            FT_IPv6, BASE_NONE, NULL, 0x0,                                          \
+            NULL, HFILL }                                                           \
+        },                                                                          \
+        { &hf_pfcp_cisco_tlv_content_ruledef_p2p_name,                              \
+        { "Ruledef P2P Name", "cisco_pfcp.cisco.contenttlv.ruledef.p2p.name",       \
+            FT_STRING, BASE_NONE, NULL, 0x0,                                        \
+            NULL, HFILL  }                                                           \
+        }                                                                           
 
 // packages/boxer/sess/sx/sxc/parser/pfcp_dec_ie.c
 
-static void
+void
 dissect_pfcp_cisco_content_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
 {
     // todo dissect TLV
@@ -556,14 +554,14 @@ dissect_pfcp_content_ip_pool(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
             offset++;
 
             if (len) {
-                proto_tree_add_item(tree, hf_pfcp_cisco_tlv_content_ippool_vrf_name, tvb, offset, len, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(tree, hf_pfcp_cisco_tlv_content_ippool_vrf_name, tvb, offset, len, ENC_BIG_ENDIAN);
                 offset += len;
             }
             // skip next type
             offset++;
         }
 
-        proto_tree_add_item(tree, hf_pfcp_cisco_tlv_content_ippool_chunk_size, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+        proto_tree_add_item(tree, hf_pfcp_cisco_tlv_content_ippool_chunk_size, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
 
         while(offset < length) {

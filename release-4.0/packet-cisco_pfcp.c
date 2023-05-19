@@ -25,7 +25,6 @@
 #include <epan/dissectors/packet-e212.h>
 #include <epan/dissectors/packet-ip.h>
 #include "packet-cisco_pfcp.h"
-
 #include "packet-pfcfp-tlv-ie.c"
 
 // packages/boxer/libs/tcpdump/print-sx.c
@@ -7874,9 +7873,7 @@ pfcp_cleanup(void)
 void
 proto_register_pfcp(void)
 {
-
     static hf_register_info hf_pfcp[] = {
-
         { &hf_pfcp_msg_type,
         { "Message Type", "cisco_pfcp.msg_type",
         FT_UINT8, BASE_DEC | BASE_EXT_STRING, &pfcp_message_type_ext, 0x0,
@@ -11086,7 +11083,7 @@ proto_register_pfcp(void)
             FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
-        add_hf_pfcp_cisco_tlv_content()
+        include_cisco_tlv_hf()
     };
 
     /* Setup protocol subtree array */

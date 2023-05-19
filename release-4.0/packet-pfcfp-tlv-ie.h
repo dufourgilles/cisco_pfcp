@@ -158,8 +158,8 @@ struct mgmt_acsctrl_config_cc_group_default_group
 };
 
 typedef struct mgmt_acsctrl_config_cc_group_default_group MGMTACTRConfigDefCCGroup;
+extern int ett_pfcp_cisco_content_tlv;
 
-
-static void
+void
 dissect_pfcp_cisco_content_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_);
 #endif
