@@ -24,6 +24,7 @@
 #include <epan/dissectors/packet-e164.h>
 #include <epan/dissectors/packet-e212.h>
 #include <epan/dissectors/packet-ip.h>
+#include "pfcp_ie.h"
 #include "packet-cisco_pfcp.h"
 #include "packet-pfcfp-tlv-ie.c"
 
@@ -49,6 +50,8 @@ static int hf_pfcp_s_flag = -1;
 static int hf_pfcp_seid = -1;
 static int hf_pfcp_seqno = -1;
 static int hf_pfcp_mp = -1;
+static int hf_pfcp_compression = -1;
+static int hf_pfcp_interface_type = -1;
 
 static int hf_pfcp2_ie = -1;
 static int hf_pfcp2_ie_len = -1;
@@ -768,7 +771,7 @@ static expert_field ei_pfcp_ie_not_decoded_null = EI_INIT;
 static expert_field ei_pfcp_ie_not_decoded_to_large = EI_INIT;
 static expert_field ei_pfcp_enterprise_ie_3gpp = EI_INIT;
 static expert_field ei_pfcp_ie_encoding_error = EI_INIT;
-
+static expert_field ei_pfcp_ie_compression_error = EI_INIT;
 
 static gboolean g_pfcp_session = FALSE;
 static guint32 pfcp_session_count;
@@ -1088,7 +1091,7 @@ static value_string_ext pfcp_message_type_ext = VALUE_STRING_EXT_INIT(pfcp_messa
 #define PFCP_IE_UPDATE_PDR                      9
 #define PFCP_IE_UPDATE_FAR                     10
 #define PFCP_IE_UPD_FORWARDING_PARAM           11
-#define PFCP_IE_UPDATE_BAR                     12
+//#define PFCP_IE_UPDATE_BAR                     12
 #define PFCP_IE_UPDATE_URR                     13
 #define PFCP_IE_UPDATE_QER                     14
 #define PFCP_IE_REMOVE_PDR                     15
@@ -1827,6 +1830,17 @@ static const value_string pfcp_cause_vals[] = {
     /* 78 to 255 Spare for future use in a response message. */
     {0, NULL}
 };
+
+static const value_string interface_type_vals[] = {
+    {  0, "SX_INTERFACE_SXA" },
+    {  1, "SX_INTERFACE_SXB" },
+    {  2, "SX_INTERFACE_SXAB" },
+    {  3, "SX_INTERFACE_SXC" },
+    {  4, "SX_INTERFACE_N4" },
+    {  5, "SX_INTERFACE_INVALID" },
+    {0, NULL}
+};
+
 
 static void
 dissect_pfcp_cause(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item, guint16 length _U_, guint8 message_type _U_, pfcp_session_args_t *args)
@@ -5899,7 +5913,18 @@ static const pfcp_ie_t pfcp_cisco_ies[] = {
     { NULL },                                                        /* End of List */
 };
 
-#define IE_COMPRESSED(spare) ((spare & 0x08) == 8)
+
+#define SX_COMPRESSION_ENABLED(_msg_type_)                 \
+(((_msg_type_ == SX_MSG_SESSION_ESTABLISHMENT_REQUEST) ||  \
+  (_msg_type_ == SX_MSG_SESSION_ESTABLISHMENT_RESPONSE) || \
+  (_msg_type_ == SX_MSG_SESSION_MODIFICATION_REQUEST) ||   \
+  (_msg_type_ == SX_MSG_SESSION_MODIFICATION_RESPONSE) ||  \
+  (_msg_type_ == SX_MSG_SESSION_DELETION_REQUEST) ||      \
+  (_msg_type_ == SX_MSG_SESSION_DELETION_RESPONSE) ||      \
+  (_msg_type_ == SX_MSG_SESSION_REPORT_REQUEST) ||         \
+  (_msg_type_ == SX_MSG_SESSION_REPORT_RESPONSE)) ? TRUE : FALSE )
+
+#define IE_COMPRESSED(spare) ((spare & 0x08) >> 3)
 
 #define NUM_PFCP_IES (sizeof(pfcp_ies)/sizeof(pfcp_ie_t))
 #define PCFP_CISCO_FIRST_IE 201
@@ -7792,15 +7817,60 @@ dissect_pfcp(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void *data 
     } else {
         proto_tree_add_item(sub_tree, hf_pfcp_spare_oct, tvb, offset, 1, ENC_BIG_ENDIAN);
     }
+
+    proto_tree_add_item(sub_tree, hf_pfcp_compression, tvb, offset, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(sub_tree, hf_pfcp_interface_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
 
+
+/*
+   1125   if(seid_flag == TRUE){
+   1126     pfcpHdr->seid = PFCP_GET_U64BIT(&(msg[4]));
+   1127     pfcpHdr->seq_num = PFCP_GET_U24BIT(&msg[12]);
+   1128     if(mp_flag) {
+   1129       pfcpHdr->msg_prio = PFCP_GET_MSG_PRIO(msg[15]);
+   1130     }
+   1131     pfcpHdr->interface_type = PFCP_GET_INTERFACE_TYPE(msg[15]);
+   1132     pfcpHdr->compression = PFCP_GET_COMPRESSION_ENABLED(msg[15]);
+   1133     offset = 16;
+   1134   }
+   1135   else{
+   1136     pfcpHdr->seq_num = PFCP_GET_U24BIT(&msg[4]);
+   1137     if(mp_flag) {
+   1138       pfcpHdr->msg_prio = PFCP_GET_MSG_PRIO(msg[7]);
+   1139     }
+   1140     pfcpHdr->interface_type = PFCP_GET_INTERFACE_TYPE(msg[7]);
+   1141     pfcpHdr->compression = PFCP_GET_COMPRESSION_ENABLED(msg[7]);
+   1142     offset = 8;
+   1143   }
+
+
+      1083   if(mp_flag) {
+   1084     // 4 bits message priority, 1 compression bit and 3 bit interface type
+   1085     buffer->buffer[curr] = ((pfcpHdr->msg_prio << 4) | (pfcpHdr->compression << 3) | PFCP_GET_INTERFACE_TYPE(pfcpHdr->interface_type));
+   1086   } else {
+   1087     buffer->buffer[curr] = ((pfcpHdr->compression << 3) | PFCP_GET_INTERFACE_TYPE(pfcpHdr->interface_type));
+   1088   }
+
+    390 {
+    391   if (PFCP_INTERFACE_N4 == interface_type) {
+    392         return sx_make_message_v2(sx_inst, msg_type, seq_num, seid, msg_prio, interface_type, pdu, buffer, FALSE);
+    393   } else {
+    394         return sx_make_message_v2(sx_inst, msg_type, seq_num, seid, msg_prio, interface_type, pdu, buffer, (sx_inst->config.compression && SX_COMPRESSION_ENABLED(msg_type))) ;
+    395   }
+    396 }
+   */
+
     //Cisco
-    if (IE_COMPRESSED(spare)) {
+    if (IE_COMPRESSED(spare) && SX_COMPRESSION_ENABLED(pfcp_hdr->message)) {        
         datalen = tvb_captured_length_remaining(tvb, offset);
-        next_tvb = tvb_uncompress(tvb, offset,  datalen);
+        next_tvb = tvb_uncompress(tvb, offset,  datalen); // sx_uncompress_zlib
         if (next_tvb) {
             add_new_data_source(pinfo, next_tvb, "gunziped data");
             dissect_pfcp_ies_common(next_tvb, pinfo, sub_tree, 0, message_type, args);
+        } else {
+            proto_tree_add_expert(sub_tree, pinfo, &ei_pfcp_ie_compression_error, tvb, offset, datalen);
+            dissect_pfcp_ies_common(tvb, pinfo, sub_tree, offset, message_type, args);
         }
     }
     else {
@@ -8017,6 +8087,16 @@ proto_register_pfcp(void)
         { &hf_pfcp_mp,
         { "Message Priority", "cisco_pfcp.mp",
         FT_UINT24, BASE_DEC, NULL, 0xf0,
+        NULL, HFILL }
+        },
+        { &hf_pfcp_compression,
+        { "Compression", "cisco_pfcp.compression",
+        FT_BOOLEAN, BASE_DEC, NULL, 0x08,
+        NULL, HFILL }
+        },
+        { &hf_pfcp_interface_type,
+        { "Interface Type", "cisco_pfcp.interface_type",
+        FT_UINT8, BASE_DEC, VALS(interface_type_vals), 0x07,
         NULL, HFILL }
         },
         { &hf_pfcp_enterprise_id,
@@ -11160,6 +11240,7 @@ proto_register_pfcp(void)
         { &ei_pfcp_ie_not_decoded_to_large,{ "cisco_pfcp.ie_not_decoded", PI_UNDECODED, PI_NOTE, "IE not decoded yet(WS:IE id to large)", EXPFILL } },
         { &ei_pfcp_enterprise_ie_3gpp,{ "cisco_pfcp.ie_enterprise_3gpp", PI_PROTOCOL, PI_ERROR, "IE not decoded yet(WS:No vendor dissector)", EXPFILL } },
         { &ei_pfcp_ie_encoding_error,{ "cisco_pfcp.ie_encoding_error", PI_PROTOCOL, PI_ERROR, "IE wrongly encoded", EXPFILL } },
+        { &ei_pfcp_ie_compression_error,{ "cisco_pfcp.ie_compression_error", PI_PROTOCOL, PI_NOTE, "IE Failed to uncompress. Attempting to read without decompressing", EXPFILL } },
     };
 
     module_t *module_pfcp;
