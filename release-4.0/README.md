@@ -18,16 +18,16 @@ Win64 Wireshark 4.0 plugin version 0.0.15 [download](http://www.gdnet.be/Wiresha
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
     There is another hierarchical level for each Wireshark plugin type (libwireshark, libwiretap and codecs).
     
-    Current version of wireshark is 3.x, hence create directories as below where needed:
+    Current version of wireshark is 4.x, hence create directories as below where needed:
     
       * Windows:   
-        * Personal: "%APPDATA%\Wireshark\plugins\3.x\epan\"   
-        * Global:   "WIRESHARK\plugins\3.x\epan\"
+        * Personal: "%APPDATA%\Wireshark\plugins\4.x\epan\"   
+        * Global:   "WIRESHARK\plugins\4.x\epan\"
         
       * Unix-like systems:  
-        * Personal: "~/.local/lib/wireshark/plugins/3.x/epan/"
+        * Personal: "~/.local/lib/wireshark/plugins/4.x/epan/"
         
       * macOS:
         //you might need to install `libgcrypt`library
-        * %APPDIR%/Contents/PlugIns/wireshark/3-x/epan/
-        * INSTALLDIR/lib/wireshark/plugins/3-x/epan/
+        * %APPDIR%/Contents/PlugIns/wireshark/4-x/epan/
+        * INSTALLDIR/lib/wireshark/plugins/4-x/epan/
