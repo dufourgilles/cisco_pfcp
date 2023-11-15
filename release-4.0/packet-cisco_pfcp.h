@@ -13,6 +13,12 @@ typedef struct pfcp_session_args {
 static int ett_pfcp = -1;
 static expert_field ei_pfcp_ie_data_not_decoded = EI_INIT;
 
+#define PFCP_GET_VERSION(msg)                   ((msg & 0xE0) >> 5)
+#define PFCP_GET_SEID_FLAG(msg)                 (msg & 0x01)
+#define PFCP_GET_MP_FLAG(msg)                   ((msg & 0x02) >> 1)
+#define PFCP_VERSION                            0x1
+#define PFCP_GET_MSG_PRIO(msg)                  (msg >> 4)
 #define PFCP_GET_INTERFACE_TYPE(msg)            (msg & 0x07)
+#define PFCP_GET_COMPRESSION_ENABLED(msg)       ((msg & 0x08) >> 3)
 
 #endif

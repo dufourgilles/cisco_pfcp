@@ -6,11 +6,13 @@ compressed format.
 ## Installation
 
 
-MAC OS Wireshark 4.0 plugin version 0.0.14 [download](http://www.gdnet.be/Wireshark/macos_4_0_cisco_pfcp.so)
+MAC OS Wireshark 4.0 plugin version 0.0.15 [download](http://www.gdnet.be/Wireshark/macos_4_0_cisco_pfcp.so)
 
 Win64 Wireshark 4.0 plugin version 0.0.13 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.13.dll)
 
 Win64 Wireshark 4.0 plugin version 0.0.14 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.14.dll)
+
+Win64 Wireshark 4.0 plugin version 0.0.15 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.15.dll)
 
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).

@@ -44,6 +44,8 @@ static int proto_pfcp = -1;
 static int hf_pfcp_msg_type = -1;
 static int hf_pfcp_msg_length = -1;
 static int hf_pfcp_hdr_flags = -1;
+static int hf_pfcp_hdr_cisco_flags = -1;
+
 static int hf_pfcp_version = -1;
 static int hf_pfcp_mp_flag = -1;
 static int hf_pfcp_s_flag = -1;
@@ -519,7 +521,7 @@ static int hf_pfcp_event_time_stamp = -1;
 static int hf_pfcp_averaging_window = -1;
 
 static int hf_pfcp_paging_policy_indicator = -1;
-
+static int hf_pfcp_cisco_hdr_flags = -1;
 
 // Cisco
 
@@ -704,6 +706,7 @@ static int hf_pfcp_cisco_triggered_rules = -1;
 // end cisco
 
 static int ett_pfcp_flags = -1;
+static int ett_pfcp_cisco_flags = -1;
 static int ett_pfcp_ie = -1;
 static int ett_pfcp_grouped_ie = -1;
 static int ett_pfcp_f_seid_flags = -1;
@@ -5914,18 +5917,6 @@ static const pfcp_ie_t pfcp_cisco_ies[] = {
 };
 
 
-#define SX_COMPRESSION_ENABLED(_msg_type_)                 \
-(((_msg_type_ == SX_MSG_SESSION_ESTABLISHMENT_REQUEST) ||  \
-  (_msg_type_ == SX_MSG_SESSION_ESTABLISHMENT_RESPONSE) || \
-  (_msg_type_ == SX_MSG_SESSION_MODIFICATION_REQUEST) ||   \
-  (_msg_type_ == SX_MSG_SESSION_MODIFICATION_RESPONSE) ||  \
-  (_msg_type_ == SX_MSG_SESSION_DELETION_REQUEST) ||      \
-  (_msg_type_ == SX_MSG_SESSION_DELETION_RESPONSE) ||      \
-  (_msg_type_ == SX_MSG_SESSION_REPORT_REQUEST) ||         \
-  (_msg_type_ == SX_MSG_SESSION_REPORT_RESPONSE)) ? TRUE : FALSE )
-
-#define IE_COMPRESSED(spare) ((spare & 0x08) >> 3)
-
 #define NUM_PFCP_IES (sizeof(pfcp_ies)/sizeof(pfcp_ie_t))
 #define PCFP_CISCO_FIRST_IE 201
 #define NUM_PFCP_CISCO_IES (sizeof(pfcp_cisco_ies)/sizeof(pfcp_ie_t))
@@ -7688,11 +7679,12 @@ dissect_pfcp_ies_common(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
 static int
 dissect_pfcp(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void *data _U_)
 {
-    proto_item          *item;
-    proto_tree          *sub_tree;
+    proto_item          *item, *cisco_flags_item;
+    proto_tree          *sub_tree, *cisco_flags_subtree;
     int                  offset = 0, datalen;
     guint64              pfcp_flags;
-    guint8               message_type, cause_aux, spare;
+    guint                pfcp_cisco_flags;
+    guint8               message_type, cause_aux;
     guint32              length;
     guint32              length_remaining;
     int                  seq_no = 0;
@@ -7809,17 +7801,16 @@ dissect_pfcp(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void *data 
     proto_tree_add_item_ret_uint(sub_tree, hf_pfcp_seqno, tvb, offset, 3, ENC_BIG_ENDIAN, &seq_no);
     offset += 3;
 
-    spare = tvb_get_guint8(tvb, offset);
+    cisco_flags_item = proto_tree_add_item_ret_uint(sub_tree, hf_pfcp_cisco_hdr_flags, tvb, offset, 1, ENC_NA, &pfcp_cisco_flags);
+    cisco_flags_subtree = proto_item_add_subtree(cisco_flags_item, ett_pfcp_cisco_flags);
     if ((pfcp_flags & 0x2) == 0x2) {
         /* If the "MP" flag is set to "1", then bits 8 to 5 of octet 16 shall indicate the message priority.*/
-        proto_tree_add_item(sub_tree, hf_pfcp_mp, tvb, offset, 1, ENC_BIG_ENDIAN);
-        proto_tree_add_item(sub_tree, hf_pfcp_spare_h0, tvb, offset, 1, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cisco_flags_subtree, hf_pfcp_mp, tvb, offset, 1, ENC_BIG_ENDIAN);
     } else {
-        proto_tree_add_item(sub_tree, hf_pfcp_spare_oct, tvb, offset, 1, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cisco_flags_subtree, hf_pfcp_spare_oct, tvb, offset, 1, ENC_BIG_ENDIAN);
     }
-
-    proto_tree_add_item(sub_tree, hf_pfcp_compression, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(sub_tree, hf_pfcp_interface_type, tvb, offset, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(cisco_flags_subtree, hf_pfcp_compression, tvb, offset, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(cisco_flags_subtree, hf_pfcp_interface_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
 
 
@@ -7862,7 +7853,8 @@ dissect_pfcp(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void *data 
    */
 
     //Cisco
-    if (IE_COMPRESSED(spare) && SX_COMPRESSION_ENABLED(pfcp_hdr->message)) {        
+
+    if (PFCP_GET_COMPRESSION_ENABLED(pfcp_cisco_flags)) {
         datalen = tvb_captured_length_remaining(tvb, offset);
         next_tvb = tvb_uncompress(tvb, offset,  datalen); // sx_uncompress_zlib
         if (next_tvb) {
@@ -7959,6 +7951,11 @@ proto_register_pfcp(void)
         FT_UINT8, BASE_HEX, NULL, 0x0,
         NULL, HFILL }
         },
+        { &hf_pfcp_hdr_cisco_flags,
+        { "Flags", "cisco_pfcp.cisco_flags",
+        FT_UINT8, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+        },
         { &hf_pfcp_version,
         { "Version", "cisco_pfcp.version",
         FT_UINT8, BASE_DEC, NULL, 0xe0,
@@ -8036,7 +8033,7 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_spare_oct,
         { "Spare", "cisco_pfcp.spare_oct",
-        FT_UINT8, BASE_DEC, NULL, 0x0,
+        FT_UINT8, BASE_DEC, NULL, 0xf0,
         NULL, HFILL }
         },
         { &hf_pfcp_spare_h0,
@@ -8086,12 +8083,12 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_mp,
         { "Message Priority", "cisco_pfcp.mp",
-        FT_UINT24, BASE_DEC, NULL, 0xf0,
+        FT_UINT8, BASE_DEC, NULL, 0xf0,
         NULL, HFILL }
         },
         { &hf_pfcp_compression,
         { "Compression", "cisco_pfcp.compression",
-        FT_BOOLEAN, BASE_DEC, NULL, 0x08,
+        FT_BOOLEAN, 8, NULL, 0x08,
         NULL, HFILL }
         },
         { &hf_pfcp_interface_type,
@@ -10033,6 +10030,12 @@ proto_register_pfcp(void)
             NULL, HFILL }
         },
 
+        { &hf_pfcp_cisco_hdr_flags,
+        { "Cisco Flags", "cisco_pfcp.cisco_hdr_flags",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
         { &hf_pfcp_paging_policy_indicator,
         { "Paging Policy Indicator (PPI)", "cisco_pfcp.ppi",
             FT_UINT8, BASE_DEC, NULL, 0x7,
@@ -11167,7 +11170,7 @@ proto_register_pfcp(void)
     };
 
     /* Setup protocol subtree array */
-#define NUM_INDIVIDUAL_ELEMS_PFCP   61 
+#define NUM_INDIVIDUAL_ELEMS_PFCP   62
     gint *ett[NUM_INDIVIDUAL_ELEMS_PFCP +
         (NUM_PFCP_IES - 1) + (NUM_PFCP_CISCO_IES - 1)];
 
@@ -11232,6 +11235,7 @@ proto_register_pfcp(void)
     ett[58] = &ett_pfcp_cisco_packet_measurement;
     ett[59] = &ett_pfcp_cisco_query_int;
     ett[60] = &ett_pfcp_cisco_content_tlv;
+    ett[61] = &ett_pfcp_cisco_flags;
 
     static ei_register_info ei[] = {
         { &ei_pfcp_ie_reserved,{ "cisco_pfcp.ie_id_reserved", PI_PROTOCOL, PI_ERROR, "Reserved IE value used", EXPFILL } },
