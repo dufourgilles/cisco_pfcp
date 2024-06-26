@@ -5,33 +5,11 @@ compressed format.
 
 ## Installation
 
-MAC OS Wireshark 3.1 plugin [download](http://www.gdnet.be/Wireshark/macos_3_1_cisco_pfcp.so)
-
-MAC OS Wireshark 3.5 plugin version 0.0.7 [download](http://www.gdnet.be/Wireshark/macos_3_5_cisco_pfcp.so)
-
-MAC OS Wireshark 3.6 plugin version 0.0.11 [download](http://www.gdnet.be/Wireshark/macos_3_6_cisco_pfcp.so)
-
-Win64 Wireshark 3.6 plugin version 0.0.11 [download](http://www.gdnet.be/Wireshark/cisco_pfcp_3_6.dll)
-
-MAC OS Wireshark 3.6 plugin version 0.0.12 [download](http://www.gdnet.be/Wireshark/macos_3_6_cisco_pfcp.so)
-
-Win64 Wireshark 3.6 plugin version 0.0.12 [download](http://www.gdnet.be/Wireshark/cisco_pfcp_3_6.dll)
-
-MAC OS Wireshark 4.0 plugin version 0.0.14 [download](http://www.gdnet.be/Wireshark/macos_4_0_cisco_pfcp.so)
-
-MAC OS Intel Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/mac_cisco_pfcp_0.0.12a_intel.so)
-
 MAC OS ARM Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/mac_cisco_pfcp_0.0.12a_arm.so)
 
-Win64 Wireshark 4.0 plugin version 0.0.14 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.14.dll)
+Win64 Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/cisco_pfcp_win64_0.0.16.dll)
 
-Win64 Wireshark 4.0 plugin version 0.0.13 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.13.dll)
-
-Win64 Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_0.0.12.dll)
-
-Win64 Wireshark 4.2 plugin version 0.0.15 [download](http://www.gdnet.be/Wireshark/win64_cisco_pfcp_4_2_v0_0_15.dll)
-
-MAC OS Wireshark 4.2 plugin version 0.0.15 [download](http://www.gdnet.be/Wireshark/macos_cisco_pfcp_4_2_v_0_0_15.so)
+MAC OS Intel Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_cisco_pfcp_0.0.16.so)
 
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
