@@ -703,6 +703,18 @@ static int hf_pfcp_cisco_busyout_idle_timeout = -1;
 static int hf_pfcp_cisco_trigger_type = -1;
 static int hf_pfcp_cisco_triggered_rules_len = -1;
 static int hf_pfcp_cisco_triggered_rules = -1;
+static int hf_pfcp_cisco_source_violation = -1;
+static int hf_pfcp_cisco_source_violation_spare = -1;
+static int hf_pfcp_cisco_source_violation_discard = -1;
+static int hf_pfcp_cisco_source_violation_ignore = -1;
+static int hf_pfcp_source_ip_flags = -1;
+static int hf_pfcp_source_ip_flags_is_mpl = -1;
+static int hf_pfcp_source_ip_flags_is_v4 = -1;
+static int hf_pfcp_source_ip_flags_is_v6 = -1;
+static int hf_pfcp_source_ip_address_ipv4 = -1;
+static int hf_pfcp_source_ip_address_ipv6 = -1;
+static int hf_pfcp_source_ip_address_mpl = -1;
+
 // end cisco
 
 static int ett_pfcp_flags = -1;
@@ -767,6 +779,9 @@ static int ett_pfcp_cisco_nexthop = -1;
 static int ett_pfcp_cisco_query_type_flags = -1;
 static int ett_pfcp_cisco_packet_measurement = -1; 
 static int ett_pfcp_cisco_query_int = -1;
+static int ett_pfcp_cisco_source_violation = -1;
+static int ett_pfcp_cisco_source_ip_address = -1;
+
 // end cisco
 
 static expert_field ei_pfcp_ie_reserved = EI_INIT;
@@ -1352,6 +1367,7 @@ static const value_string pfcp_ie_type[] = {
     { 158, "Paging Policy Indicator"},                              /* Extendable / Subclause 8.2.116 */
     //159 to 32767 Spare. For future use.
     // cisco
+    { 192, "Cisco Source IP Address"},
     { 201, "Cisco Update Additional Forwarding"},
     { 202, "Cisco Config Action"},
     { 203, "Cisco Correlation ID"},
@@ -1416,7 +1432,7 @@ static const value_string pfcp_ie_type[] = {
     { 262, "Unknwon IE"},
     { 263, "Unknwon IE"},
     { 264, "Unknwon IE"},
-    { 265, "Unknwon IE"},
+    { 265, "IP Source Violation"},
     { 266, "Cisco Transport Lvl Marking"},
     //32768 to 65535 Vendor-specific IEs.
     {0, NULL}
@@ -4670,6 +4686,72 @@ dissect_pfcp_pdn_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, p
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
     }
 }
+
+static void
+dissect_pfcp_cisco_source_ip_address(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    guint64 flags_val;
+
+    static int * const pfcp_source_ip_flags[] = {
+        &hf_pfcp_source_ip_flags_is_mpl,
+        &hf_pfcp_source_ip_flags_is_v4,
+        &hf_pfcp_source_ip_flags_is_v6,
+        NULL
+    };
+    //hf_pfcp_subseq_volume_threshold
+    proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_pfcp_source_ip_flags,
+        ett_pfcp_cisco_source_ip_address, pfcp_source_ip_flags, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT, &flags_val);
+
+    offset += 1;
+
+    if ((flags_val & 0x2) == 2) {
+        proto_tree_add_item(tree, hf_pfcp_source_ip_address_ipv4, tvb, offset, 4, ENC_BIG_ENDIAN);
+        proto_item_append_text(item, "IPv4 %s", tvb_ip_to_str(pinfo->pool, tvb, offset));
+        offset += 4;
+    }
+
+    if ((flags_val & 0x1) == 1) {
+        proto_tree_add_item(tree, hf_pfcp_source_ip_address_ipv6, tvb, offset, 16, ENC_BIG_ENDIAN);
+        proto_item_append_text(item, "IPv6 %s", tvb_ip6_to_str(pinfo->pool, tvb, offset));
+        offset += 16;
+    }
+
+    if ((flags_val & 0x4) == 4) {
+        proto_tree_add_item(tree, hf_pfcp_source_ip_address_mpl, tvb, offset, 1, ENC_BIG_ENDIAN);
+        proto_item_append_text(item, "MPL %u", tvb_get_guint8(tvb, offset));
+        offset += 1;
+    }
+
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+}
+
+static void
+dissect_pfcp_source_violation(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    guint64 flags_val;
+
+    static int * const pfcp_source_violation_flags[] = {
+        &hf_pfcp_cisco_source_violation_spare,
+        &hf_pfcp_cisco_source_violation_discard,
+        &hf_pfcp_cisco_source_violation_ignore,
+        NULL
+    };
+    //hf_pfcp_subseq_volume_threshold
+    proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_pfcp_cisco_source_violation,
+        ett_pfcp_cisco_source_violation, pfcp_source_violation_flags, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT, &flags_val);    
+
+    offset += 1;
+
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+
+}
+
 /*
  * 8.2.80    Failed Rule ID
  */
@@ -5848,6 +5930,15 @@ static const pfcp_ie_t pfcp_ies[] = {
 
 
 static const pfcp_ie_t pfcp_cisco_ies[] = {
+/*      192 */    { dissect_pfcp_cisco_source_ip_address },                     /* PFCP_IE_SOURCE_IP */
+/*      193 */    { NULL },
+/*      194 */    { NULL },
+/*      195 */    { NULL },
+/*      196 */    { NULL },
+/*      197 */    { NULL },
+/*      198 */    { NULL },
+/*      199 */    { NULL },
+/*      200 */    { NULL },
 /*      201 */    { dissect_pfcp_cisco_update_addtl_forward_params },           /* PFCP_IE_UPDATE_ADDNL_FORW_PARAMS */
 /*      202 */    { dissect_pfcp_cisco_config_action },                         /* PFCP_IE_CONFIG_ACTION */
 /*      203 */    { dissect_pfcp_cisco_correlation_id },                        /* PFCP_IE_CORRELATION_ID */
@@ -5912,13 +6003,13 @@ static const pfcp_ie_t pfcp_cisco_ies[] = {
 /*      262 */    { NULL },
 /*      263 */    { NULL },
 /*      264 */    { NULL },
-/*      265 */    { NULL },
+/*      265 */    { dissect_pfcp_source_violation },
     { NULL },                                                        /* End of List */
 };
 
 
 #define NUM_PFCP_IES (sizeof(pfcp_ies)/sizeof(pfcp_ie_t))
-#define PCFP_CISCO_FIRST_IE 201
+#define PCFP_CISCO_FIRST_IE 192
 #define NUM_PFCP_CISCO_IES (sizeof(pfcp_cisco_ies)/sizeof(pfcp_ie_t))
 
 /* Set up the array to hold "etts" for each IE*/
@@ -11136,6 +11227,61 @@ proto_register_pfcp(void)
             FT_UINT8, BASE_HEX, NULL, 0xe0,
             NULL, HFILL }
         },
+        { &hf_pfcp_source_ip_flags,
+        { "Flags", "cisco_pfcp.source_ip",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_flags_is_mpl,
+        { "MPL", "cisco_pfcp.source_ip.is_mpl",
+            FT_BOOLEAN, 8, NULL, 0x4,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_flags_is_v4,
+        { "V4", "cisco_pfcp.source_ip.is_v4",
+            FT_BOOLEAN, 8, NULL, 0x2,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_flags_is_v6,
+        { "V6", "cisco_pfcp.source_ip.is_v6",
+            FT_BOOLEAN, 8, NULL, 0x1,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_address_ipv4,
+        { "IPv4 address", "cisco_pfcp.source_ip.ipv4_addr",
+            FT_IPv4, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_address_ipv6,
+        { "IPv6 address", "cisco_pfcp.source_ip.ipv6_addr",
+            FT_IPv6, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_ip_address_mpl,
+        { "MPL", "cisco_pfcp.source_ip.mpl",
+            FT_UINT8, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_cisco_source_violation,
+        { "Flags", "cisco_pfcp.source_violation",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_cisco_source_violation_discard,
+        { "Discard", "cisco_pfcp.source_violation.ignore",
+            FT_BOOLEAN, 8, NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_cisco_source_violation_ignore,
+        { "Ignore", "cisco_pfcp.source_violation.discard",
+            FT_BOOLEAN, 8, NULL, 0x01,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_cisco_source_violation_spare,
+        { "Spare", "cisco_pfcp.source_violation.spare",
+            FT_UINT8, BASE_DEC, NULL, 0xfc,
+            NULL, HFILL }
+        },
         { &hf_pfcp_cisco_ue_query_int_flags_b4_offline_urr,
         { "Offline URR", "cisco_pfcp.ue_query_int_flags.offline_urr",
             FT_BOOLEAN, 8, NULL, 0x10,
@@ -11170,7 +11316,7 @@ proto_register_pfcp(void)
     };
 
     /* Setup protocol subtree array */
-#define NUM_INDIVIDUAL_ELEMS_PFCP   62 
+#define NUM_INDIVIDUAL_ELEMS_PFCP   64
     gint *ett[NUM_INDIVIDUAL_ELEMS_PFCP +
         (NUM_PFCP_IES - 1) + (NUM_PFCP_CISCO_IES - 1)];
 
@@ -11236,6 +11382,8 @@ proto_register_pfcp(void)
     ett[59] = &ett_pfcp_cisco_query_int;
     ett[60] = &ett_pfcp_cisco_content_tlv;
     ett[61] = &ett_pfcp_cisco_flags;
+    ett[62] = &ett_pfcp_cisco_source_violation;
+    ett[63] = &ett_pfcp_cisco_source_ip_address;
 
     static ei_register_info ei[] = {
         { &ei_pfcp_ie_reserved,{ "cisco_pfcp.ie_id_reserved", PI_PROTOCOL, PI_ERROR, "Reserved IE value used", EXPFILL } },
