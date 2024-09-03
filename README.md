@@ -11,6 +11,8 @@ Win64 Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgi
 
 MAC OS Intel Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_cisco_pfcp_0.0.16.so)
 
+MAC OS Intel Wireshark 4.4 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_x86_4_4_cisco_pfcp_v_0_0_16.so)
+
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
     There is another hierarchical level for each Wireshark plugin type (libwireshark, libwiretap and codecs).
