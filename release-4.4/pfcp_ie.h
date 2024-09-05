@@ -432,6 +432,9 @@
 #define  PFCP_IP_ADDR_TYPE_IPV4          1
 #define  PFCP_IP_ADDR_TYPE_IPV6          2
 
+#ifndef u_int
+typedef unsigned int u_int;
+#endif
 
 typedef struct {
   int ip_ver;
@@ -2605,6 +2608,7 @@ typedef struct
 typedef struct
 {
   /* TODO: Not Yet Defined In The Spec */
+  PfcpCause               cause;
 }PfcpSessDelReq;
 
 /* Session Deletion Response */
@@ -2857,7 +2861,7 @@ typedef struct
 /*Prime PFD Management Request*/
 typedef struct
 {
-  PfcpConfigAction         configAction;;
+  PfcpConfigAction         configAction;
   PfcpCorrelationId        correlationId;
   PfcpSubPartNumber        subPartNumber;
   PfcpSubPartIndex         subPartIndex;
