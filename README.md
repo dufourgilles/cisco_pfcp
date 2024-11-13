@@ -9,11 +9,14 @@ MAC OS ARM Wireshark 4.0 plugin version 0.0.12a [download](http://www.gdnet.be/W
 
 Win64 Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/cisco_pfcp_win64_0.0.16.dll)
 
-Win64 Wireshark 4.4 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/win64_rel_4_4_cisco_pfcp_v_0_0_16.dll)
+Win64 Wireshark 4.4 plugin version 0.0.17 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.17/win64_rel_4_4_cisco_pfcp_v_0_0_17.dll)
 
 MAC OS Intel Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_cisco_pfcp_0.0.16.so)
 
-MAC OS Intel Wireshark 4.4 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_x86_4_4_cisco_pfcp_v_0_0_16.so)
+MAC OS Intel Wireshark 4.4 plugin version 0.0.17 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.17/macos_intel_cisco_pfcp_0.0.17.so)
+
+MAC OS ARM Wireshark 4.4 plugin version 0.0.17 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.17/macos_arm_cisco_pfcp_0.0.17.so)
+
 
 ### Compiled plugins (*.dll or *.so)
     Compiled plugins are stored in subfolders of the plugin folders, with the subfolder name being the Wireshark minor version number (X.Y).
