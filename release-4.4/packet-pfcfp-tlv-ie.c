@@ -326,7 +326,7 @@ dissect_pfcp_cisco_content_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
       13924 struct actrl_send_rule_config {
   13925         char service_name[MAX_CSS_SERVICE_NAME_SIZE];
   13926         char rule_name[ACSCTRL_RULE_NAMELEN];
-  13927         u_int ruledef_id;
+  13927         guint ruledef_id;
   13928         acs_sct_rule_line_t rule_def[ACS_MAX_RULELINES_PER_RDEF];
   13929         char rdef_description[ACSCTRL_RULE_DESCLEN];
   13930         ACSRuleAppType rule_application;
@@ -337,7 +337,7 @@ dissect_pfcp_cisco_content_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
   13935         ACSConfigBool dump_pkt_in_log;
   13936         acs_rule_oper_t rule_operator;
   13937         ACSSFWRuleEnableLogging sfw_rule_logging;
-  13938         u_int p2p_cdp_id;
+  13938         guint p2p_cdp_id;
   13939         char p2p_cdp_name[ACS_P2P_CDP_NAME_MAX_LEN];
   13940         bool_t config_changed;
   13941 };
@@ -456,15 +456,15 @@ dissect_pfcp_content_rule(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
               13852         bool_t valid;
               13853         bool_t case_sens;
               13854         bool_t group_of_objects_present;
-              13855         u_int proto;
-              13856         u_int field;
-              13857         u_int field2;
-              13858         u_int field3;
-              13859         u_int rule_type;
-              13860         u_int oper;
-              13861         u_int int_val;
-              13862         u_int int_val2;
-              13863         u_int group_of_objects_id;
+              13855         guint proto;
+              13856         guint field;
+              13857         guint field2;
+              13858         guint field3;
+              13859         guint rule_type;
+              13860         guint oper;
+              13861         guint int_val;
+              13862         guint int_val2;
+              13863         guint group_of_objects_id;
               13864         int hex_signature_len; 43
               13865         sn_ip_addr_t ip_addr;
               13866         sn_ip_addr_t ip_addr2;
@@ -472,7 +472,7 @@ dissect_pfcp_content_rule(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
               13868         char xheader_name[ACS_MAX_XHEADER_NAME_LEN]; 32
               13869         char disp_str[ACS_MAX_STRING_LEN]; 128
               13870         char lowercase_str[ACS_MAX_STRING_LEN];
-              13871         u_int str_len;
+              13871         guint str_len;
               13872 };
 */
 static void

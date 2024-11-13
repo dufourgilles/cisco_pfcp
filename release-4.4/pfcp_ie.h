@@ -432,15 +432,12 @@
 #define  PFCP_IP_ADDR_TYPE_IPV4          1
 #define  PFCP_IP_ADDR_TYPE_IPV6          2
 
-#ifndef u_int
-typedef unsigned int u_int;
-#endif
 
 typedef struct {
   int ip_ver;
   union {
-    u_int ipv4;
-    u_int ipv6[4];
+    guint ipv4;
+    guint ipv6[4];
   } snx_ip_addr_t_u;
 } snx_ip_addr_t;
 
@@ -2608,7 +2605,7 @@ typedef struct
 typedef struct
 {
   /* TODO: Not Yet Defined In The Spec */
-  PfcpCause               cause;
+  PfcpCause               cause; // fake value
 }PfcpSessDelReq;
 
 /* Session Deletion Response */

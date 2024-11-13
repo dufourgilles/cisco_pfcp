@@ -587,9 +587,10 @@ static int hf_pfcp_cisco_cc_group_name_len = -1;
 static int hf_pfcp_cisco_cc_group_name_val = -1;
 static int hf_pfcp_cisco_gy_offline_charging_status = -1;
 static int hf_pfcp_cisco_traffic_class = -1;
-static int hf_pfcp_cisco_copy_inner_outer_flag = -1;
 static int hf_pfcp_cisco_inner_mark = -1;
 static int hf_pfcp_cisco_transport_lvl_marking_opts = -1;
+static int hf_pfcp_cisco_transport_lvl_marking_opts_b1_outer = -1;
+static int hf_pfcp_cisco_transport_lvl_marking_opts_b0_inner = -1;
 static int hf_pfcp_cisco_rule_name = -1;
 static int hf_pfcp_cisco_nexthop = -1;
 static int hf_pfcp_cisco_nexthop_id = -1;
@@ -728,6 +729,7 @@ static int ett_pfcp_ue_ip_address_flags = -1;
 static int ett_pfcp_sdf_filter_flags = -1;
 static int ett_pfcp_apply_action_flags = -1;
 static int ett_pfcp_measurement_method_flags = -1;
+static int ett_pfcp_transport_lvl_marking_opts = -1;
 static int ett_pfcp_reporting_triggers = -1;
 static int ett_pfcp_volume_threshold = -1;
 static int ett_pfcp_volume_quota = -1;
@@ -6847,7 +6849,16 @@ dissect_pfcp_cisco_transport_lvl_marking_opts(tvbuff_t *tvb, packet_info *pinfo,
 {
     int offset = 0;
 
-    proto_tree_add_item(tree, hf_pfcp_cisco_transport_lvl_marking_opts, tvb, offset, 1, ENC_NA);
+    static int * const pfcp_cisco_transport_lvl_marking_opts[] = {
+        &hf_pfcp_spare_b7_b2,          
+        &hf_pfcp_cisco_transport_lvl_marking_opts_b1_outer,
+        &hf_pfcp_cisco_transport_lvl_marking_opts_b0_inner,
+        NULL
+    };
+
+    proto_tree_add_bitmask_with_flags(tree, tvb, offset, hf_pfcp_cisco_transport_lvl_marking_opts,
+        ett_pfcp_transport_lvl_marking_opts, pfcp_cisco_transport_lvl_marking_opts, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT);
+
     offset ++;
 
     if (offset < length) {
@@ -7597,20 +7608,6 @@ dissect_pfcp_cisco_inner_packet_marking(tvbuff_t *tvb, packet_info *pinfo, proto
     return;      
 }
 
-// static void
-// dissect_pfcp_cisco_transport_level_marking(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
-// {
-//     int offset = 0;
-
-//     proto_tree_add_item(tree, hf_pfcp_cisco_copy_inner_outer_flag, tvb, offset, 1, ENC_NA);
-//     offset += 1;
-
-//     if (offset < length) {
-//         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
-//     }
-
-//     return;      
-// }
 
 static void
 dissect_pfcp_cisco_ue_query_int(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
@@ -10800,17 +10797,29 @@ proto_register_pfcp(void)
             NULL, HFILL }
         },
 
-        { &hf_pfcp_cisco_copy_inner_outer_flag,
-        {
-            "Copy Inner/Outter flag", "cisco_pfcp.cisco.inoutflag",
-            FT_UINT16, BASE_HEX, NULL, 0,
-            NULL, HFILL }
-        },
-
         { &hf_pfcp_cisco_inner_mark,
         {
             "Inner Mark", "cisco_pfcp.inner_mark",
             FT_UINT16, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_transport_lvl_marking_opts,
+        {
+            "Transport LVL Options", "cisco_pfcp.transport_lvl",
+            FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_transport_lvl_marking_opts_b1_outer,
+        { "Copy Outer", "cisco_pfcp.transport_lvl.outer",
+            FT_BOOLEAN, 8, NULL, 0x02,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_transport_lvl_marking_opts_b0_inner,
+        { "Copy Inner", "cisco_pfcp.transport_lvl.inner",
+            FT_BOOLEAN, 8, NULL, 0x01,
             NULL, HFILL }
         },
 
@@ -11317,7 +11326,7 @@ proto_register_pfcp(void)
     };
 
     /* Setup protocol subtree array */
-#define NUM_INDIVIDUAL_ELEMS_PFCP   64
+#define NUM_INDIVIDUAL_ELEMS_PFCP   65
     gint *ett[NUM_INDIVIDUAL_ELEMS_PFCP +
         (NUM_PFCP_IES - 1) + (NUM_PFCP_CISCO_IES - 1)];
 
@@ -11385,6 +11394,7 @@ proto_register_pfcp(void)
     ett[61] = &ett_pfcp_cisco_flags;
     ett[62] = &ett_pfcp_cisco_source_violation;
     ett[63] = &ett_pfcp_cisco_source_ip_address;
+    ett[64] = &ett_pfcp_transport_lvl_marking_opts;
 
     static ei_register_info ei[] = {
         { &ei_pfcp_ie_reserved,{ "cisco_pfcp.ie_id_reserved", PI_PROTOCOL, PI_ERROR, "Reserved IE value used", EXPFILL } },
