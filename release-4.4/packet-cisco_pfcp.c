@@ -254,11 +254,46 @@ static int hf_pfcp_dl_mbr = -1;
 static int hf_pfcp_ul_gbr = -1;
 static int hf_pfcp_dl_gbr = -1;
 
+/*
+typedef struct
+{
+  guint8      valid;
+  guint8      gter:1;
+  guint8      srir:1;
+  guint8      spare:2;
+  guint8      upir:1;
+  guint8      erir:1;
+  guint8      usar:1;
+  guint8      dldr:1;
+  guint8      msur:1;
+  guint8      spter:1;
+  guint8      uprr:1;
+  guint8      nbur:1;
+  guint8      tar:1;
+  guint8      uisr:1;
+  guint8      dipr:1;
+  guint8      dipd:1;
+  guint8      spare1;
+}PfcpReportType;
+*/
 static int hf_pfcp_report_type = -1;
+
+static int hf_pfcp_report_type_b7_gter = -1;
+static int hf_pfcp_report_type_b6_srir = -1;
+static int hf_pfcp_report_type_b4_spter = -1;
 static int hf_pfcp_report_type_b3_upir = -1;
 static int hf_pfcp_report_type_b2_erir = -1;
 static int hf_pfcp_report_type_b1_usar = -1;
 static int hf_pfcp_report_type_b0_dldr = -1;
+
+static int hf_pfcp_report_type2 = -1;
+static int hf_pfcp_report_type_b7_dipr = -1;
+static int hf_pfcp_report_type_b6_dipd = -1;
+static int hf_pfcp_report_type_b4_uisr = -1;
+static int hf_pfcp_report_type_b3_tar = -1;
+static int hf_pfcp_report_type_b2_nbur = -1;
+static int hf_pfcp_report_type_b1_uprr = -1;
+static int hf_pfcp_report_type_b0_msur = -1;
 
 static int hf_pfcp_offending_ie = -1;
 
@@ -635,6 +670,13 @@ static int hf_pfcp_cisco_mon_sub_flags_control = -1;
 static int hf_pfcp_cisco_mon_sub_flags_data = -1;
 static int hf_pfcp_cisco_mon_sub_flags_action = -1;
 static int hf_pfcp_cisco_mon_sub_status_code = -1;
+static int hf_pfcp_cisco_mon_sub_cli_instance = -1;
+static int hf_pfcp_cisco_mon_sub_congestion_short = -1;
+static int hf_pfcp_cisco_mon_sub_congestion_long = -1;
+static int hf_pfcp_cisco_mon_sub_throttle = -1;
+static int hf_pfcp_cisco_mon_sub_packet_accepted = -1;
+static int hf_pfcp_cisco_mon_sub_packet_rejected = -1;
+static int hf_pfcp_cisco_mon_sub_disk_io_rate = -1;
 static int hf_pfcp_cisco_rating_group = -1;
 static int hf_pfcp_cisco_num_qgr = -1;
 static int hf_pfcp_cisco_qgr_urrid = -1;
@@ -2583,17 +2625,39 @@ dissect_pfcp_report_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pr
     int offset = 0;
 
     static int * const pfcp_report_type_flags[] = {
-        &hf_pfcp_spare_b7_b4,
+        &hf_pfcp_report_type_b7_gter,
+        &hf_pfcp_report_type_b6_srir,
+        &hf_pfcp_spare_b5,
+        &hf_pfcp_report_type_b4_spter,
         &hf_pfcp_report_type_b3_upir,
         &hf_pfcp_report_type_b2_erir,
         &hf_pfcp_report_type_b1_usar,
         &hf_pfcp_report_type_b0_dldr,
         NULL
     };
+
+    static int * const pfcp_report_type_flags2[] = {
+        &hf_pfcp_report_type_b7_dipr,
+        &hf_pfcp_report_type_b6_dipd,
+        &hf_pfcp_spare_b5,
+        &hf_pfcp_report_type_b4_uisr,
+        &hf_pfcp_report_type_b3_tar,
+        &hf_pfcp_report_type_b2_nbur,
+        &hf_pfcp_report_type_b1_uprr,
+        &hf_pfcp_report_type_b0_msur,
+        NULL
+    };
+
     /* Octet 5  Spare   UPIR   ERIR    USAR    DLDR */
     proto_tree_add_bitmask_with_flags(tree, tvb, offset, hf_pfcp_report_type,
         ett_pfcp_report_type, pfcp_report_type_flags, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT);
     offset += 1;
+
+    if (offset < length) {
+        proto_tree_add_bitmask_with_flags(tree, tvb, offset, hf_pfcp_report_type2,
+            ett_pfcp_report_type, pfcp_report_type_flags2, ENC_BIG_ENDIAN, BMT_NO_FALSE | BMT_NO_INT);
+        offset += 1;
+    }
 
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
@@ -7076,6 +7140,21 @@ dissect_pfcp_cisco_mon_sub_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     int offset = 0;
     proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_status_code, tvb, offset, 1, ENC_NA);
     offset += 1;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_cli_instance, tvb, offset, 4, ENC_NA);
+    offset += 4;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_congestion_short, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_congestion_long, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_throttle, tvb, offset, 1, ENC_NA);
+    offset += 1;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_packet_accepted, tvb, offset, 4, ENC_NA);
+    offset += 4;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_packet_rejected, tvb, offset, 4, ENC_NA);
+    offset += 4;
+    proto_tree_add_item(tree, hf_pfcp_cisco_mon_sub_disk_io_rate, tvb, offset, 4, ENC_NA);
+    offset += 4;
+
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
     }
@@ -9076,6 +9155,21 @@ proto_register_pfcp(void)
         { "Flags", "cisco_pfcp.report_type",
             FT_UINT8, BASE_HEX, NULL, 0x0,
             NULL, HFILL }
+        },  
+        { &hf_pfcp_report_type_b7_gter,
+        { "GTER (Graceful Termination Report)", "cisco_pfcp.report_type.upir",
+            FT_BOOLEAN, 8, NULL, 0xF0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b6_srir,
+        { "SRIR (GTPU Session Replacement Indication Report)", "cisco_pfcp.report_type.upir",
+            FT_BOOLEAN, 8, NULL, 0x40,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b4_spter,
+        { "SPTER (Self Protection Termination)", "cisco_pfcp.report_type.upir",
+            FT_BOOLEAN, 8, NULL, 0x010,
+            NULL, HFILL }
         },
         { &hf_pfcp_report_type_b3_upir,
         { "UPIR (User Plane Inactivity Report)", "cisco_pfcp.report_type.upir",
@@ -9097,6 +9191,48 @@ proto_register_pfcp(void)
             FT_BOOLEAN, 8, NULL, 0x01,
             NULL, HFILL }
         },
+
+        { &hf_pfcp_report_type2,
+        { "Flags", "cisco_pfcp.report_type2",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b7_dipr,
+        { "DIPR (Delegated IPV6 Prefix Request)", "cisco_pfcp.report_type.dipr",
+            FT_BOOLEAN, 8, NULL, 0xF0,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b6_dipd,
+        { "DIPD (Delegated IPV6 Prefix Deletion)", "cisco_pfcp.report_type.dipd",
+            FT_BOOLEAN, 8, NULL, 0x40,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b4_uisr,
+        { "UISR (UP Initiated Session Request)", "cisco_pfcp.report_type.uisr",
+            FT_BOOLEAN, 8, NULL, 0x010,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b3_tar,
+        { "TAR (Trigger Action Report)", "cisco_pfcp.report_type.tar",
+            FT_BOOLEAN, 8, NULL, 0x08,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b2_nbur,
+        { "NBUR (NAT Binding Update Report)", "cisco_pfcp.report_type.nbur",
+            FT_BOOLEAN, 8, NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b1_uprr,
+        { "UPRR (User Plane Re-Activity Report)", "cisco_pfcp.report_type.uprr",
+            FT_BOOLEAN, 8, NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_report_type_b0_msur,
+        { "MSUR (Subscriber Trace Status Report)", "cisco_pfcp.report_type.msur",
+            FT_BOOLEAN, 8, NULL, 0x01,
+            NULL, HFILL }
+        },
+
         { &hf_pfcp_offending_ie,
         { "Type of the offending IE", "cisco_pfcp.offending_ie",
             FT_UINT16, BASE_DEC | BASE_EXT_STRING, &pfcp_ie_type_ext, 0x0,
@@ -10854,8 +10990,50 @@ proto_register_pfcp(void)
         },
 
         { &hf_pfcp_cisco_mon_sub_status_code,
-        { "Status Code", "cisco_pfcp.mon_sub.status_code",
+        { "Exit Code", "cisco_pfcp.mon_sub.status_code",
             FT_UINT8, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_cli_instance,
+        { "CLI Instance ID", "cisco_pfcp.mon_sub.cli_instance_id",
+            FT_UINT32, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_congestion_short,
+        { "Congestion Short Tern", "cisco_pfcp.mon_sub.cong_short",
+            FT_UINT8, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_congestion_long,
+        { "Congestion Long Term", "cisco_pfcp.mon_sub.cong_long",
+            FT_UINT8, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_throttle,
+        { "Throttle", "cisco_pfcp.mon_sub.throttle",
+            FT_UINT8, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_packet_accepted,
+        { "Packet Accepted", "cisco_pfcp.mon_sub.packet_accepted",
+            FT_UINT32, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_packet_rejected,
+        { "Packet Rejected", "cisco_pfcp.mon_sub.packet_rejected",
+            FT_UINT32, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_mon_sub_disk_io_rate,
+        { "File Transfer Rate", "cisco_pfcp.mon_sub.io_rate",
+            FT_UINT32, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 

@@ -436,8 +436,8 @@
 typedef struct {
   int ip_ver;
   union {
-    guint ipv4;
-    guint ipv6[4];
+    u_int ipv4;
+    u_int ipv6[4];
   } snx_ip_addr_t_u;
 } snx_ip_addr_t;
 
@@ -2605,7 +2605,6 @@ typedef struct
 typedef struct
 {
   /* TODO: Not Yet Defined In The Spec */
-  PfcpCause               cause; // fake value
 }PfcpSessDelReq;
 
 /* Session Deletion Response */
@@ -2858,7 +2857,7 @@ typedef struct
 /*Prime PFD Management Request*/
 typedef struct
 {
-  PfcpConfigAction         configAction;
+  PfcpConfigAction         configAction;;
   PfcpCorrelationId        correlationId;
   PfcpSubPartNumber        subPartNumber;
   PfcpSubPartIndex         subPartIndex;
