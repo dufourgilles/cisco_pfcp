@@ -436,8 +436,8 @@
 typedef struct {
   int ip_ver;
   union {
-    u_int ipv4;
-    u_int ipv6[4];
+    guint32 ipv4;
+    guint32 ipv6[4];
   } snx_ip_addr_t_u;
 } snx_ip_addr_t;
 
@@ -2601,12 +2601,6 @@ typedef struct
 }PfcpSessModRsp;
 
 
-/* Session Deletion Request */
-typedef struct
-{
-  /* TODO: Not Yet Defined In The Spec */
-}PfcpSessDelReq;
-
 /* Session Deletion Response */
 typedef struct
 {
@@ -2857,7 +2851,7 @@ typedef struct
 /*Prime PFD Management Request*/
 typedef struct
 {
-  PfcpConfigAction         configAction;;
+  PfcpConfigAction         configAction;
   PfcpCorrelationId        correlationId;
   PfcpSubPartNumber        subPartNumber;
   PfcpSubPartIndex         subPartIndex;
@@ -2986,7 +2980,7 @@ typedef struct
     PfcpSessEstabRsp            sessEstabRsp;         /* Session Establishment Response    */
     PfcpSessModReq              sessModReq;           /* Session Modification Request      */
     PfcpSessModRsp              sessModRsp;           /* Session Modification Response     */
-    PfcpSessDelReq              sessDelReq;           /* Session Deletion Request          */
+    //PfcpSessDelReq              sessDelReq;           /* Session Deletion Request          */
     PfcpSessDelRsp              sessDelRsp;           /* Session Deletion Response         */
     PfcpSessReportReq           sessReportReq;        /* Session Report Request            */
     PfcpSessReportRsp           sessReportRsp;        /* Session Report Response           */

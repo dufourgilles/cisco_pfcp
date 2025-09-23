@@ -99,6 +99,7 @@ static int hf_pfcp_f_seid_ipv6 = -1;
 static int hf_pfcp_pdr_id = -1;
 static int hf_pfcp_precedence = -1;
 static int hf_pfcp_source_interface = -1;
+static int hf_pfcp_source_interface_type = -1;
 static int hf_pfcp_f_teid_flags = -1;
 static int hf_pfcp_fteid_flg_spare = -1;
 static int hf_pfcp_fteid_flg_b3_ch_id = -1;
@@ -567,6 +568,9 @@ static int hf_pfcp_cisco_sub_part_number = -1;
 static int hf_pfcp_cisco_sub_part_index = -1;
 static int hf_pfcp_cisco_tlv_content = -1;
 static int hf_pfcp_cisco_rbase_name = -1;
+static int hf_pfcp_cisco_poi_id = -1;
+static int hf_pfcp_cisco_xid = -1;
+static int hf_pfcp_cisco_add_xid = -1;
 static int hf_pfcp_cisco_bitoctet = -1;
 static int hf_pfcp_cisco_msisdn_len = -1;
 static int hf_pfcp_cisco_msisdn_val = -1;
@@ -599,6 +603,12 @@ static int hf_pfcp_cisco_imei_len = -1;
 static int hf_pfcp_cisco_imei_val = -1;
 static int hf_pfcp_cisco_callid = -1;
 static int hf_pfcp_cisco_intercept_id = -1;
+static int hf_pfcp_cisco_intercept_key = -1;
+static int hf_pfcp_cisco_snx_ipv4 = -1;
+static int hf_pfcp_cisco_snx_ipv6 = -1;
+static int hf_pfcp_cisco_s8hr_bearer_id = -1;
+static int hf_pfcp_cisco_s8hr_ims_flag = -1;
+static int hf_pfcp_cisco_s8hr_gtpc_teid = -1;
 static int hf_pfcp_cisco_charging_id = -1;
 static int hf_pfcp_cisco_bearer_id = -1;
 static int hf_pfcp_cisco_context_name_len = -1;
@@ -664,6 +674,8 @@ static int hf_pfcp_cisco_ts_profile = -1;
 static int  hf_pfcp_cisco_ts_subscription_len = -1;
 static int hf_pfcp_cisco_ts_subscription = -1;
 static int hf_pfcp_cisco_traffic_opt_policy_id = -1;
+static int hf_pfcp_cisco_gxcf_policy_id = -1;
+static int hf_pfcp_cisco_roaming_status = -1;
 static int hf_pfcp_cisco_mon_sub_info_flags = -1;
 static int hf_pfcp_cisco_mon_sub_flags_spare = -1;
 static int hf_pfcp_cisco_mon_sub_flags_control = -1;
@@ -904,6 +916,7 @@ static void dissect_pfcp_ethernet_traffic_information(tvbuff_t *tvb, packet_info
 static void dissect_pfcp_additional_monitoring_time(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type, pfcp_session_args_t *args _U_);
 
 // Cisco
+static void dissect_pfcp_cisco_extended_intr_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type, pfcp_session_args_t *args);
 static void dissect_pfcp_cisco_update_addtl_forward_params(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type, pfcp_session_args_t *args);
 static void dissect_pfcp_cisco_stats_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type, pfcp_session_args_t *args);
 static void dissect_pfcp_cisco_config_action(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type, pfcp_session_args_t *args);
@@ -1413,6 +1426,7 @@ static const value_string pfcp_ie_type[] = {
     //159 to 32767 Spare. For future use.
     // cisco
     { 192, "Cisco Source IP Address"},
+    { 198, "Cisco Ext Intr Info"},
     { 201, "Cisco Update Additional Forwarding"},
     { 202, "Cisco Config Action"},
     { 203, "Cisco Correlation ID"},
@@ -1943,12 +1957,28 @@ decode_pfcp_source_interface(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
     return offset;
 
 }
+
+
 static void
 dissect_pfcp_source_interface(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
 {
     int offset = 0;
 
     offset = decode_pfcp_source_interface(tvb, pinfo, tree, item, offset);
+
+    if (offset < length) {
+        proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
+    }
+
+}
+
+static void
+dissect_pfcp_src_interface_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+
+    proto_tree_add_item(tree, hf_pfcp_source_interface_type, tvb, offset, 1, ENC_BIG_ENDIAN);
+    offset += 1;
 
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
@@ -3945,63 +3975,114 @@ dissect_pfcp_linked_urr_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
  */
 
 static const value_string pfcp_outer_hdr_desc_vals[] = {
-
-    { 0x0100, "GTP-U/UDP/IPv4 " },
-    { 0x0200, "GTP-U/UDP/IPv6 " },
-    { 0x0300, "GTP-U/UDP/IPv4/IPv6 " },
-    { 0x0400, "UDP/IPv4 " },
-    { 0x0800, "UDP/IPv6 " },
-    { 0x0C00, "UDP/IPv4/IPv6 " },
-    { 0x1000, "IPv4 " },
-    { 0x2000, "IPv6 " },
-    { 0x3000, "IPv4/IPv6 " },
-    { 0x4000, "C-TAG " },
-    { 0x8000, "S-TAG " },
+    { 0x01, "GTP-U/UDP/IPv4 " },
+    { 0x02, "GTP-U/UDP/IPv6 " },
+    { 0x03, "GTP-U/UDP/IPv4/IPv6 " },
+    { 0x04, "UDP/IPv4 " },
+    { 0x08, "UDP/IPv6 " },
+    { 0x0C, "UDP/IPv4/IPv6 " },
+    { 0x10, "IPv4 " },
+    { 0x20, "IPv6 " },
+    { 0x30, "IPv4/IPv6 " },
+    { 0x40, "C-TAG " },
+    { 0x80, "S-TAG " },
     { 0, NULL }
 };
+
+static void convert_description_from_legacy(guint8 *description_legacy, guint16 *description)
+{
+  switch(*description_legacy){
+  case PFCP_OHC_TCP_IPV4_LEGACY:
+  {
+      *description = PFCP_OHC_TCP_IPV4;
+      break;
+  }
+  case  PFCP_OHC_TCP_IPV6_LEGACY:
+  {
+      *description = PFCP_OHC_TCP_IPV6;
+      break;
+  }
+  case PFCP_OHC_GTPU_UDP_IPv4_LEGACY:
+  {
+       *description = PFCP_OHC_GTPU_UDP_IPv4;
+       break;
+  }
+  case PFCP_OHC_GTPU_UDP_IPv6_LEGACY:
+  {
+       *description = PFCP_OHC_GTPU_UDP_IPv6;
+       break;
+  }
+  case PFCP_OHC_UDP_IPv4_LEGACY:
+  {
+       *description = PFCP_OHC_UDP_IPv4;
+       break;
+  }
+  case PFCP_OHC_UDP_IPv6_LEGACY:
+  {
+      *description = PFCP_OHC_UDP_IPv6;
+      break;
+  }
+ }
+}
+
 
 static void
 dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
 {
     int offset = 0;
     guint32 value;
+    guint16 description;
 
     /* Octet 5  Outer Header Creation Description */
-    proto_tree_add_item_ret_uint(tree, hf_pfcp_outer_hdr_desc, tvb, offset, 2, ENC_BIG_ENDIAN, &value);
-    offset += 2;
+    
+    if (length % 2) {
+        proto_tree_add_item(tree, hf_pfcp_outer_hdr_desc, tvb, offset, 1, ENC_BIG_ENDIAN);
+        guint8 legacy_description = tvb_get_uint8(tvb, offset);
+        description = (guint16)(legacy_description & 0xFF);
+        convert_description_from_legacy(&legacy_description, &description);
+        offset += 1;
+    } else {
+        proto_tree_add_item_ret_uint(tree, hf_pfcp_outer_hdr_desc, tvb, offset, 2, ENC_BIG_ENDIAN, &value);
+        description = (guint16)(value & 0xFFFF);
+        offset += 2;
+    }
+    
 
-    /* m to (m+3)   TEID
-     * The TEID field shall be present if the Outer Header Creation Description requests the creation of a GTP-U header.
-     * Otherwise it shall not be present
-     */
-    if ((value & 0x0100) || (value & 0x0200)){
+    if ((description == PFCP_OHC_GTPU_UDP_IPv4) ||
+        (description == PFCP_OHC_GTPU_UDP_IPv4v6)||
+        (description == PFCP_OHC_GTPU_UDP_IPv6))
+    {
+        /* Decoding teid */
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_teid, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
     }
 
-    /*
-    * p to (p+3)   IPv4
-    * The IPv4 Address field shall be present if the Outer Header Creation Description requests the creation of a IPv4 header
-    */
-    if ((value & 0x0100) || (value & 0x0400)) {
+    if ((description == PFCP_OHC_GTPU_UDP_IPv4) ||
+        (description == PFCP_OHC_GTPU_UDP_IPv4v6)||
+        (description == PFCP_OHC_UDP_IPv4 ||
+        (description == PFCP_OHC_TCP_IPV4))) {
+
+        /* Decoding ipv4 */
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_ipv4, tvb, offset, 4, ENC_BIG_ENDIAN);
-        offset += 4;
+        offset+=4;
     }
 
-    /*
-    * q to (q+15)   IPv6
-    * The IPv6 Address field shall be present if the Outer Header Creation Description requests the creation of a IPv6 header
-    */
-    if ((value & 0x0200) || (value & 0x0800)) {
+    if ((description == PFCP_OHC_GTPU_UDP_IPv6) ||
+        (description == PFCP_OHC_GTPU_UDP_IPv4v6)||
+        (description == PFCP_OHC_UDP_IPv6)||
+        (description == PFCP_OHC_TCP_IPV6)) {
+
+    /* Decoding ipv6 */
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_ipv6, tvb, offset, 16, ENC_NA);
         offset += 16;
     }
 
-    /*
-    * r to (r+1)   Port Number
-    * The Port Number field shall be present if the Outer Header Creation Description requests the creation of a UDP/IP header
-    */
-    if (offset + 2 <= length) {
+    if ((description == PFCP_OHC_UDP_IPv4)||
+        (description == PFCP_OHC_TCP_IPV4) ||
+        (description == PFCP_OHC_TCP_IPV6) ||
+        (description == PFCP_OHC_UDP_IPv6)) {
+
+        /* Decoding port number */
         proto_tree_add_item(tree, hf_pfcp_outer_hdr_creation_port, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
     }
@@ -4009,8 +4090,8 @@ dissect_pfcp_outer_header_creation(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     if (offset < length) {
         proto_tree_add_expert(tree, pinfo, &ei_pfcp_ie_data_not_decoded, tvb, offset, -1);
     }
-
 }
+
 /*
  * 8.2.57   BAR ID
  */
@@ -5990,6 +6071,8 @@ static const pfcp_ie_t pfcp_ies[] = {
 /*    156 */    { dissect_pfcp_event_time_stamp },                              /* Event Time Stamp                                Extendable / Subclause 8.2.114  */
 /*    157 */    { dissect_pfcp_averaging_window },                              /* Averaging Window                                Extendable / Subclause 8.2.115  */
 /*    158 */    { dissect_pfcp_paging_policy_indicator },                       /* Paging Policy Indicator                         Extendable / Subclause 8.2.116  */
+/*    159 */    { NULL },
+/*.   160 */    { dissect_pfcp_src_interface_type },
 //159 to 32767 Spare. For future use.
 //32768 to 65535 Vendor-specific IEs.
     { NULL },                                                        /* End of List */
@@ -6003,7 +6086,7 @@ static const pfcp_ie_t pfcp_cisco_ies[] = {
 /*      195 */    { NULL },
 /*      196 */    { NULL },
 /*      197 */    { NULL },
-/*      198 */    { NULL },
+/*      198 */    { dissect_pfcp_cisco_extended_intr_info },
 /*      199 */    { NULL },
 /*      200 */    { NULL },
 /*      201 */    { dissect_pfcp_cisco_update_addtl_forward_params },           /* PFCP_IE_UPDATE_ADDNL_FORW_PARAMS */
@@ -6840,36 +6923,96 @@ dissect_pfcp_cisco_sub_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     return;    
 }
 
+
+static void
+dissect_pfcp_cisco_extended_intr_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
+{
+    int offset = 0;
+    guint8 flag;
+
+    proto_tree_add_item(tree, hf_pfcp_cisco_bitoctet, tvb, offset, 1, ENC_NA);
+    flag = tvb_get_uint8(tvb, offset);
+
+    if (flag & 0x1) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_poi_id, tvb, offset, 4, ENC_NA);
+        offset += 4;
+    }
+
+    if (flag & 0x2) {
+        //const LI_XID_LEN = 16;
+        proto_tree_add_item(tree, hf_pfcp_cisco_xid, tvb, offset, 16, ENC_NA);
+        offset += 16;
+    }
+
+    if (flag & 0x4) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_add_xid, tvb, offset, 16, ENC_NA);
+        offset += 16;
+    }
+}
+
 static void
 dissect_pfcp_cisco_intr_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint16 length, guint8 message_type _U_, pfcp_session_args_t *args _U_)
 {
     int offset = 0;
-    guint32 len = 0, bitoctet;
+    guint8 flag, context_len;
 
-    proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_bitoctet, tvb, offset, 1, ENC_NA, &bitoctet);
+    proto_tree_add_item(tree, hf_pfcp_cisco_bitoctet, tvb, offset, 1, ENC_NA);
+    flag = tvb_get_uint8(tvb, offset);
     offset += 1;
 
-    if (bitoctet & 0x1) {
+    if (flag & 0x1) {
         proto_tree_add_item(tree, hf_pfcp_cisco_intercept_id, tvb, offset, 4, ENC_NA);
         offset += 4;
     }
 
-    if (bitoctet & 0x2) {
+    if (flag & 0x2) {        
         proto_tree_add_item(tree, hf_pfcp_cisco_charging_id, tvb, offset, 4, ENC_NA);
         offset += 4;
     }
 
-    if (bitoctet & 0x4) {
-        proto_tree_add_item(tree, hf_pfcp_cisco_bearer_id, tvb, offset, 4, ENC_NA);
+    if (flag & 0x4) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_bearer_id, tvb, offset, 1, ENC_NA);
+        offset += 1;
+    }
+
+    proto_tree_add_item(tree, hf_pfcp_cisco_context_name_len, tvb, offset, 1, ENC_BIG_ENDIAN);
+    context_len = tvb_get_uint8(tvb, offset);
+    offset += 1;
+
+    if (flag & 0x8) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_context_name_val, tvb, offset, context_len, ENC_ASCII);
+        offset += context_len;
+    }
+
+    context_len = tvb_get_uint8(tvb, offset);
+    offset += 1;
+
+    if (flag & 0x10) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_intercept_key, tvb, offset, context_len, ENC_ASCII);
+        offset += context_len;
+    }
+
+    if (flag & 0x20) {
+        //ipv4
+        proto_tree_add_item(tree, hf_pfcp_cisco_snx_ipv4, tvb, offset, 4, ENC_ASCII);
         offset += 4;
     }
 
-    if (bitoctet & 0x8) {    
-        proto_tree_add_item_ret_uint(tree, hf_pfcp_cisco_context_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &len);
-        offset += 1;
+    if (flag & 0x40) {
+        // ipv6
+        proto_tree_add_item(tree, hf_pfcp_cisco_snx_ipv6, tvb, offset, 16, ENC_ASCII);
+        offset += 16;
+    }
 
-        proto_tree_add_item(tree, hf_pfcp_cisco_context_name_val, tvb, offset, len, ENC_ASCII);
-        offset += len;
+    if (flag & 0x80) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_s8hr_bearer_id, tvb, offset, 1, ENC_ASCII);
+        offset++;
+
+        proto_tree_add_item(tree, hf_pfcp_cisco_s8hr_gtpc_teid, tvb, offset, 4, ENC_ASCII);
+        offset+=4;
+
+        proto_tree_add_item(tree, hf_pfcp_cisco_s8hr_ims_flag, tvb, offset, 1, ENC_ASCII);
+        offset++;
     }
 
     if (offset < length) {
@@ -7052,6 +7195,7 @@ dissect_pfcp_cisco_sub_params(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             offset += len;
         }
     }
+
     if (bitoctet & 0x40000) {
         proto_tree_add_item(tree, hf_pfcp_cisco_cf_policy_id, tvb, offset, 4, ENC_NA);
         offset += 4;
@@ -7078,6 +7222,16 @@ dissect_pfcp_cisco_sub_params(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     }
     if (bitoctet & 0x400000) {
         proto_tree_add_item(tree, hf_pfcp_cisco_traffic_opt_policy_id, tvb, offset, 1, ENC_NA);
+        offset += 1;
+    }
+
+    if (bitoctet & 0x800000) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_gxcf_policy_id, tvb, offset, 1, ENC_NA);
+        offset += 1;
+    }
+
+    if (bitoctet & 0x1000000) {
+        proto_tree_add_item(tree, hf_pfcp_cisco_roaming_status, tvb, offset, 1, ENC_NA);
         offset += 1;
     }
 
@@ -8355,6 +8509,11 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_source_interface,
         { "Source Interface", "cisco_pfcp.source_interface",
+            FT_UINT8, BASE_DEC, VALS(pfcp_source_interface_vals), 0x0f,
+            NULL, HFILL }
+        },
+        { &hf_pfcp_source_interface_type,
+        { "Source Interface type", "cisco_pfcp.source_interface_type",
             FT_UINT8, BASE_DEC, VALS(pfcp_source_interface_vals), 0x0f,
             NULL, HFILL }
         },
@@ -10515,6 +10674,27 @@ proto_register_pfcp(void)
             NULL, HFILL }
         },
 
+        { &hf_pfcp_cisco_poi_id,
+        {
+            "POI ID", "cisco_pfcp.cisco.poi_id",
+            FT_UINT32, BASE_HEX, NULL, 0,
+            NULL, HFILL }
+        },        
+
+        { &hf_pfcp_cisco_xid,
+        {
+            "XID", "cisco_pfcp.cisco.xid",
+            FT_BYTES, BASE_NONE, NULL, 0,
+            NULL, HFILL }
+        }, 
+
+        { &hf_pfcp_cisco_add_xid,
+        {
+            "Additional XID", "cisco_pfcp.cisco.add_xid",
+            FT_BYTES, BASE_NONE, NULL, 0,
+            NULL, HFILL }
+        }, 
+
         { &hf_pfcp_cisco_intercept_id,
         {
             "Intercept ID", "cisco_pfcp.cisco.interceptid",
@@ -10532,7 +10712,7 @@ proto_register_pfcp(void)
         { &hf_pfcp_cisco_bearer_id,
         {
             "Bearer ID", "cisco_pfcp.cisco.bearerid",
-            FT_UINT64, BASE_HEX, NULL, 0,
+            FT_UINT8, BASE_HEX, NULL, 0,
             NULL, HFILL }
         },
 
@@ -10547,6 +10727,42 @@ proto_register_pfcp(void)
         {
             "Context Name", "cisco_pfcp.cisco.ctxname",
             FT_STRING, BASE_NONE, NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_snx_ipv4,
+        { "SNX IPv4", "cisco_pfcp.cisco.ipv4",
+            FT_IPv4, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_snx_ipv6,
+        { "SNX IPv6", "cisco_pfcp.cisco.ipv6",
+            FT_IPv6, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_intercept_key,
+        { "SNX IPv6", "cisco_pfcp.cisco.intercept.key",
+            FT_BYTES, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_s8hr_bearer_id,
+        { "S8HR Bearer id", "cisco_pfcp.cisco.s8hr.bearerid",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_s8hr_gtpc_teid,
+        { "S8HR GTPC teid", "cisco_pfcp.cisco.s8hr.teid",
+            FT_UINT32, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_s8hr_ims_flag,
+        { "S8HR IMS Flag", "cisco_pfcp.cisco.s8hr.ims_flag",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
             NULL, HFILL }
         },
 
@@ -10777,6 +10993,20 @@ proto_register_pfcp(void)
         { &hf_pfcp_cisco_traffic_opt_policy_id,
         {
             "Traffic Optimization Policy ID", "cisco_pfcp.traffic_opt_policy_id",
+            FT_UINT8, BASE_DEC,  NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_gxcf_policy_id,
+        {
+            "GX CF Policy ID", "cisco_pfcp.gxcf_policy_id",
+            FT_UINT8, BASE_DEC,  NULL, 0,
+            NULL, HFILL }
+        },
+
+        { &hf_pfcp_cisco_roaming_status,
+        {
+            "Roaming Status", "cisco_pfcp.roaming_status",
             FT_UINT8, BASE_DEC,  NULL, 0,
             NULL, HFILL }
         },

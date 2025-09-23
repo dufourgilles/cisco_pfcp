@@ -21,4 +21,5 @@ static expert_field ei_pfcp_ie_data_not_decoded = EI_INIT;
 #define PFCP_GET_INTERFACE_TYPE(msg)            (msg & 0x07)
 #define PFCP_GET_COMPRESSION_ENABLED(msg)       ((msg & 0x08) >> 3)
 
+
 #endif
