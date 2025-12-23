@@ -11,6 +11,8 @@ Win64 Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgi
 
 Win64 Wireshark 4.4 plugin version 0.0.19 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.19/win64_rel_4_4_cisco_pfcp_0.0.19.dll)
 
+Win64 Wireshark 4.6 plugin version 0.0.19 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.19/win64_rel_4_6_cisco_pfcp_0.0.19.dll)
+
 MAC OS Intel Wireshark 4.2 plugin version 0.0.16 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.16/macos_cisco_pfcp_0.0.16.so)
 
 MAC OS Intel Wireshark 4.4 plugin version 0.0.17 [download](https://github.com/dufourgilles/cisco_pfcp/releases/download/v0.0.17/macos_intel_cisco_pfcp_0.0.17.so)
