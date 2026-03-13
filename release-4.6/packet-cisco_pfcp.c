@@ -2463,8 +2463,8 @@ dissect_pfcp_monitoring_time(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     * Octets 5 to 8 shall be encoded in the same format as the first four octets
     * of the 64-bit timestamp format as defined in section 6 of IETF RFC 5905.
     */
-    time_str = tvb_ntp_fmt_ts_sec(tvb, 0);
-    proto_tree_add_string(tree, hf_pfcp_monitoring_time, tvb, offset, 4, time_str);
+    proto_tree_add_item_ret_time_string(tree, hf_pfcp_monitoring_time, tvb, offset, 4,
+        ENC_TIME_SECS | ENC_BIG_ENDIAN, pinfo->pool, &time_str);
     proto_item_append_text(item, "%s", time_str);
     offset += 4;
 
@@ -8961,7 +8961,7 @@ proto_register_pfcp(void)
         },
         { &hf_pfcp_monitoring_time,
         { "Monitoring Time", "cisco_pfcp.monitoring_time",
-            FT_STRING, BASE_NONE, NULL, 0,
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0,
             NULL, HFILL }
         },
         { &hf_pfcp_reporting_triggers_o5_b0_perio,
